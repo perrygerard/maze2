@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Thread — a maze concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#0a1114;
+    --app:#10191d;
+    --app-2:#0c1417;
+    --ink:#e8eef0;
+    --muted:#7f96a0;
+    --wall:#33474f;
+    --thread:#ffc06a;
+    --thread-core:#fff0d2;
+    --beacon:#56e0c8;
+    --line:#1c2a30;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #12211f 0%, var(--page) 60%);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100dvh;padding:24px;overflow:hidden;
+  }
+
+  /* Phone frame on wide screens; fills the viewport on real phones */
+  .device{
+    position:relative;width:min(400px,100%);height:min(844px,100dvh);
+    background:var(--app);border-radius:44px;overflow:hidden;
+    box-shadow:0 0 0 2px #1e2c31, 0 0 0 12px #060b0d, 0 40px 90px -30px #000;
+    display:flex;flex-direction:column;
+  }
+  @media (max-width:440px){
+    body{padding:0;}
+    .device{width:100%;height:100dvh;border-radius:0;box-shadow:none;}
+  }
+
+  .topbar{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 16px 10px;padding-top:max(14px,env(safe-area-inset-top));
+    z-index:5;
+  }
+  .mark{font-family:"Fraunces",serif;font-weight:600;font-size:20px;letter-spacing:.2px;flex:none;
+    cursor:pointer;user-select:none;white-space:nowrap;}
+  /* light gauge + figures live up here now, off the board */
+  .gauge{display:flex;align-items:center;gap:8px;flex:1;min-width:46px;max-width:210px;}
+  .lantern{width:15px;height:15px;color:var(--thread);flex:none;}
+  .track{flex:1;height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
+  .fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb055,#ffd98f);
+    box-shadow:0 0 10px rgba(255,192,106,.6);transition:width .5s cubic-bezier(.3,.8,.3,1);width:60%;}
+  .fig{font-size:12.5px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:5px;
+    font-variant-numeric:tabular-nums;flex:none;}
+  .fig .ico{width:13px;height:13px;color:var(--muted);opacity:.85;}
+  .fig.ember i{width:7px;height:7px;border-radius:50%;background:var(--thread);
+    box-shadow:0 0 6px rgba(255,192,106,.85);display:inline-block;}
+  .iconbtn{border:1px solid var(--line);background:var(--app-2);color:var(--muted);
+    width:34px;height:34px;border-radius:10px;cursor:pointer;display:grid;place-items:center;transition:.18s;flex:none;}
+  .iconbtn:hover{color:var(--ink);border-color:#2b3e45;}
+  .iconbtn svg{width:16px;height:16px;}
+
+  .stage{position:relative;flex:1;min-height:0;touch-action:none;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;}
+
+  .hint{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+    background:rgba(10,17,20,.62);backdrop-filter:blur(6px);border:1px solid var(--line);
+    color:var(--ink);font-size:13px;padding:9px 15px;border-radius:999px;
+    pointer-events:none;transition:opacity .5s;white-space:nowrap;}
+  .hint b{color:var(--thread);font-weight:500;}
+
+  /* Win */
+  .win{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;background:radial-gradient(90% 60% at 50% 42%, rgba(21,42,40,.86), rgba(8,14,16,.94));
+    backdrop-filter:blur(3px);z-index:8;text-align:center;padding:24px;}
+  .win.show{display:flex;animation:fade .5s ease both;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .win h2{font-family:"Fraunces",serif;font-weight:600;font-size:30px;margin:0;}
+  .win p{color:var(--muted);margin:2px 0 18px;font-size:14px;}
+  .win .figures{display:flex;gap:26px;margin-bottom:22px;}
+  .win .figures div{font-family:"Fraunces",serif;font-size:26px;}
+  .win .figures span{display:block;font-family:"Space Grotesk";font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin-top:2px;}
+  .btn{border:0;background:var(--thread);color:#241704;font:inherit;font-weight:600;font-size:15px;
+    padding:12px 22px;border-radius:14px;cursor:pointer;}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid #2b3e45;}
+  .win .row{display:flex;gap:10px;}
+
+  /* world map */
+  .sheet{position:absolute;inset:0;display:none;flex-direction:column;z-index:9;padding:20px 18px;
+    background:rgba(7,12,14,.97);backdrop-filter:blur(5px);overflow-y:auto;
+    padding-top:max(20px,env(safe-area-inset-top));}
+  .sheet.show{display:flex;animation:fade .28s ease both;}
+  .sheet h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin:2px 2px 2px;}
+  .sheet .sub{color:var(--muted);font-size:12.5px;margin:0 2px 18px;max-width:280px;line-height:1.4;}
+  .sheetclose{position:absolute;top:16px;right:16px;}
+  .world{margin-bottom:20px;}
+  .world .wname{font-family:"Fraunces",serif;font-size:17px;font-weight:600;line-height:1.1;}
+  .world .wtag{color:var(--muted);font-size:10px;letter-spacing:.15em;text-transform:uppercase;margin:1px 0 9px;}
+  .nodes{display:flex;gap:9px;flex-wrap:wrap;}
+  .node{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex:none;
+    font-weight:600;font-size:15px;border:1px solid var(--line);cursor:pointer;
+    background:rgba(255,255,255,.03);color:var(--ink);transition:transform .12s;
+    font-variant-numeric:tabular-nums;}
+  .node:active{transform:scale(.94);}
+  .node.locked{opacity:.3;cursor:default;}
+  .node.done{color:#12181c;}
+  .node.done svg{width:18px;height:18px;}
+  .node.current{outline:2px solid currentColor;outline-offset:2px;}
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="topbar">
+      <div class="mark">Thread</div>
+      <div class="gauge">
+        <svg class="lantern" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3 4 4.2 4 8a4 4 0 0 1-8 0c0-1.6.6-2.6 1.2-3.2.2 1.1 1 1.7 1.6 1.7C9.6 7 11 4 12 2z"/></svg>
+        <div class="track"><div class="fill" id="lightFill"></div></div>
+      </div>
+      <span class="fig ember"><i></i><span id="embers">0/0</span></span>
+      <span class="fig"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg><span id="time">0:00</span></span>
+      <button class="iconbtn" id="reset" title="New maze" aria-label="New maze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="c"></canvas>
+      <div class="hint" id="hint">Drag or tap through the dark. Gather the <b>light</b></div>
+      <div class="win" id="win">
+        <h2 id="winh2">Out.</h2>
+        <p id="wintag">You found the way through.</p>
+        <div class="figures">
+          <div id="wtime">0:00<span>time</span></div>
+          <div id="wsteps">0<span>steps</span></div>
+          <div id="wembers">0<span>embers</span></div>
+        </div>
+        <div class="row">
+          <button class="btn" id="next">Next level</button>
+          <button class="btn ghost" id="tomap">Map</button>
+        </div>
+      </div>
+      <div class="sheet" id="map">
+        <button class="iconbtn sheetclose" id="mapClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <h2>Worlds</h2>
+        <div class="sub">Trace each one, easy to hard. Finish a world to open the next.</div>
+        <div id="mapWorlds"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const elTime = document.getElementById('time');
+  const elEmbers = document.getElementById('embers');
+  const elLightFill = document.getElementById('lightFill');
+  const elHint = document.getElementById('hint');
+  const winEl = document.getElementById('win');
+  const markEl = document.querySelector('.mark');
+  const mapEl = document.getElementById('map');
+
+  // ---- worlds (each a visual style) × 5 levels, easy to hard ----
+  const WORLDS = [
+    { name:'Ember', tag:'warm stone',    bg:'#0e171b', app:'#10191d', wall:'#33474f', thread:'#ffc06a', threadRGB:'255,192,106', core:'#fff0d2', coreRGB:'255,240,210', start:'#c9a06a', beacon:'#56e0c8', beaconRGB:'86,224,200',  ember:'255,206,122' },
+    { name:'Tide',  tag:'deep water',    bg:'#0b1622', app:'#0c1826', wall:'#2b4a5e', thread:'#7fd0ff', threadRGB:'127,208,255', core:'#e8f6ff', coreRGB:'232,246,255', start:'#6f97b0', beacon:'#ffcf7a', beaconRGB:'255,207,122', ember:'160,220,255' },
+    { name:'Moss',  tag:'forest floor',  bg:'#0f1a12', app:'#111d14', wall:'#33513c', thread:'#c8e08a', threadRGB:'200,224,138', core:'#f2f8dd', coreRGB:'242,248,221', start:'#8aa06a', beacon:'#ff9fb0', beaconRGB:'255,159,176', ember:'210,230,150' },
+    { name:'Dusk',  tag:'last light',    bg:'#161022', app:'#171226', wall:'#443a5e', thread:'#e6a0ff', threadRGB:'230,160,255', core:'#f7ecff', coreRGB:'247,236,255', start:'#a08ac0', beacon:'#7dffd0', beaconRGB:'125,255,208', ember:'220,170,255' },
+    { name:'Ash',   tag:'no colour left',bg:'#111315', app:'#141618', wall:'#3d4348', thread:'#f4f6f8', threadRGB:'244,246,248', core:'#ffffff', coreRGB:'255,255,255', start:'#9aa2a8', beacon:'#ffb45b', beaconRGB:'255,180,91',  ember:'220,226,230' },
+  ];
+  const LEVELS_PER_WORLD = 5;
+  const TOTAL = WORLDS.length * LEVELS_PER_WORLD;
+  const worldOf = i => Math.floor(i / LEVELS_PER_WORLD);
+  const levelOf = i => i % LEVELS_PER_WORLD;
+
+  let cur = 0;                 // current level index (0..TOTAL-1)
+  let beaten = 0;             // number of levels completed (persisted)
+  let levelCols = 18, levelRows = 26;
+  let T = WORLDS[0];          // active theme
+
+  // difficulty ramps smoothly across all levels
+  function levelParams(i){
+    const d = TOTAL > 1 ? i/(TOTAL-1) : 0;
+    return {
+      cols: Math.round(11 + d*17),      // 11 → 28
+      rows: Math.round(15 + d*23),      // 15 → 38
+      drain: 0.013 + d*0.012,           // 0.013 → 0.025 : new ground costs real light now
+      density: 0.035 - d*0.012,         // embers thin out (kept a touch denser now they're required)
+      lightStart: 0.62 - d*0.12,        // 0.62 → 0.50 : less of a cushion to start
+      reachSpan: 3.2 - d*1.0,           // sight reaches a little less far
+      braid: 0.05 + d*0.18,             // 0.05 → 0.23 : loops & alternate routes, not one line
+      needFrac: 0.40 + d*0.45,          // 0.40 → 0.85 : share of embers needed to open the exit
+    };
+  }
+  function loadProgress(){ try{ const v=parseInt(localStorage.getItem('thread_progress')); if(!isNaN(v)) beaten=Math.max(0,Math.min(TOTAL,v)); }catch(e){} }
+  function saveProgress(){ try{ localStorage.setItem('thread_progress', String(beaten)); }catch(e){} }
+
+  // ---- state ----
+  let cols, rows, cells, cellSize;
+  let camX = 0, camY = 0, tCamX = 0, tCamY = 0;
+  let viewW = 0, viewH = 0, dpr = 1;
+  let trail = [];              // array of cell indices
+  let inTrail = new Set();     // membership for O(1)
+  let endCell = 0, startCell = 0;
+  let dragging = false;
+  let started = false, won = false;
+  let startTime = 0, elapsed = 0;
+  let fingerActive = null;     // {x,y} world coords of the active point (for the ghost ring)
+
+  // fog of war
+  let explored = new Set();    // every cell ever seen (persists, dim)
+  let nearDepth = new Map();   // cells currently within sight of the head -> corridor distance
+  let sightReach = 4;          // how far the light currently reaches (derived from light level)
+  const DIM = 0.13;            // brightness of remembered-but-distant cells
+
+  // lantern light + embers (calm: light never fails, only softens the reach of sight)
+  let light = 0.62;            // 0..1
+  let LIGHT_START = 0.66;      // per-level (set by loadLevel)
+  let DRAIN = 0.011;           // spent per NEW cell explored (backtracking is free)
+  let emberDensity = 0.03;     // fraction of cells holding an ember
+  let reachSpan = 3.0;         // how far sight extends per unit of light
+  const EMBER_GAIN = 0.30;     // light restored per ember
+  const reachOf = L => 1.1 + L*reachSpan; // low light collapses sight to the next cell; embers reopen it
+  let embers = new Set();      // cells holding an uncollected ember
+  let emberTotal = 0, emberGot = 0, emberNeed = 1;   // exit opens once emberGot >= emberNeed
+  let braid = 0.05;            // fraction of extra walls opened (loops / alternate routes)
+  let needFrac = 0.5;          // share of embers required to open the exit
+  let blooms = [];             // soft ripples when an ember is gathered
+
+  // tap-to-move: a tap walks the thread along the corridor to the tapped cell
+  let walkQueue = [];          // cells still to step into during an auto-walk
+  let walkAcc = 0, lastT = 0;  // animation pacing
+  const STEP_MS = 52;          // time per cell while auto-walking
+  const DRAG_THRESH = 10;      // px of movement before a touch counts as a drag (else it's a tap)
+  let downX = 0, downY = 0, moved = false;
+  let pings = [];              // little rings acknowledging a tap
+  let hintTimer = 0;           // transient message timer
+
+  const idx = (c, r) => r * cols + c;
+  const cx = i => i % cols;
+  const cy = i => (i - (i % cols)) / cols;
+
+  // ---- maze generation (recursive backtracker) ----
+  function genMaze() {
+    cells = Array.from({length: cols*rows}, () => ({ walls:[true,true,true,true], v:false }));
+    const stack = [];
+    let cur = idx(0,0); cells[cur].v = true;
+    const dirs = [[0,-1,0,2],[1,0,1,3],[0,1,2,0],[-1,0,3,1]]; // dc,dr,wall,opposite
+    let count = 1;
+    while (count < cols*rows) {
+      const c = cx(cur), r = cy(cur);
+      const nbrs = [];
+      for (const [dc,dr,w,ow] of dirs) {
+        const nc=c+dc, nr=r+dr;
+        if (nc>=0&&nc<cols&&nr>=0&&nr<rows && !cells[idx(nc,nr)].v) nbrs.push([idx(nc,nr),w,ow]);
+      }
+      if (nbrs.length) {
+        const [ni,w,ow] = nbrs[(Math.random()*nbrs.length)|0];
+        cells[cur].walls[w] = false; cells[ni].walls[ow] = false;
+        stack.push(cur); cur = ni; cells[cur].v = true; count++;
+      } else cur = stack.pop();
+    }
+    // braid: open a share of the remaining walls so there are loops and real route choices,
+    // instead of a single line from start to finish.
+    if (braid > 0){
+      const closed = [];
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++){
+        const i = idx(c,r);
+        if (c<cols-1 && cells[i].walls[1]) closed.push([i, idx(c+1,r), 1, 3]);
+        if (r<rows-1 && cells[i].walls[2]) closed.push([i, idx(c,r+1), 2, 0]);
+      }
+      for (let k=closed.length-1; k>0; k--){ const j=(Math.random()*(k+1))|0; [closed[k],closed[j]]=[closed[j],closed[k]]; }
+      const openCount = Math.floor(closed.length * braid);
+      for (let k=0; k<openCount; k++){ const [a,b,w,ow]=closed[k]; cells[a].walls[w]=false; cells[b].walls[ow]=false; }
+    }
+  }
+
+  // Choose the exit at a random spot among the cells farthest (by corridor distance) from the
+  // start — so its location varies each maze but the level is never trivially short.
+  function pickExit(){
+    const d = new Int32Array(cols*rows).fill(-1);
+    d[startCell] = 0; const q = [startCell]; let maxD = 0;
+    for (let qi=0; qi<q.length; qi++){
+      const i = q[qi];
+      for (const n of openNeighbors(i)){
+        if (d[n] < 0){ d[n] = d[i]+1; if (d[n] > maxD) maxD = d[n]; q.push(n); }
+      }
+    }
+    const thresh = maxD * 0.7;                 // only the far reaches qualify
+    const far = [];
+    for (let i=0; i<cols*rows; i++){ if (i !== startCell && d[i] >= thresh) far.push(i); }
+    return far.length ? far[(Math.random()*far.length)|0] : (cols*rows-1);
+  }
+
+  function resetGame(newMaze=true) {
+    cols = levelCols; rows = levelRows;
+    if (newMaze) genMaze();
+    startCell = idx(0,0);
+    endCell = pickExit();
+    trail = [startCell];
+    inTrail = new Set(trail);
+    explored = new Set();
+    nearDepth = new Map();
+    light = LIGHT_START;
+    blooms = [];
+    walkQueue.length = 0; pings = []; moved = false;
+    placeEmbers();
+    reveal();
+    started = false; won = false; elapsed = 0; startTime = 0;
+    fingerActive = null;
+    winEl.classList.remove('show');
+    if (hintTimer) { clearTimeout(hintTimer); hintTimer = 0; }
+    elHint.innerHTML = `Gather <b>${emberNeed}</b> ember${emberNeed===1?'':'s'}, then reach the light`;
+    elHint.style.opacity = '1';
+    layout();
+    // center camera on start immediately
+    tCamX = camX = clampCam(cellSize*(cx(startCell)+0.5) - viewW/2, worldW()-viewW);
+    tCamY = camY = clampCam(cellSize*(cy(startCell)+0.5) - viewH/2, worldH()-viewH);
+    updateHud();
+  }
+
+  // ---- worlds: apply a style, load a level, show the map ----
+  function applyTheme(w){
+    T = WORLDS[w];
+    const rs = document.documentElement.style;
+    rs.setProperty('--app', T.app);
+    rs.setProperty('--wall', T.wall);
+    rs.setProperty('--thread', T.thread);
+    rs.setProperty('--thread-core', T.core);
+    rs.setProperty('--beacon', T.beacon);
+    varCache = {};                                   // bust cached CSS-var colours
+    if (elLightFill){
+      elLightFill.style.background = `linear-gradient(90deg, ${T.thread}, ${T.core})`;
+      elLightFill.style.boxShadow = `0 0 10px rgba(${T.threadRGB},.6)`;
+    }
+    if (markEl) markEl.style.color = T.thread;
+  }
+
+  function loadLevel(i){
+    cur = Math.max(0, Math.min(TOTAL-1, i));
+    const p = levelParams(cur);
+    levelCols = p.cols; levelRows = p.rows;
+    DRAIN = p.drain; LIGHT_START = p.lightStart;
+    emberDensity = p.density; reachSpan = p.reachSpan;
+    braid = p.braid; needFrac = p.needFrac;
+    applyTheme(worldOf(cur));
+    if (markEl) markEl.textContent = `${T.name} · ${levelOf(cur)+1}`;
+    hideMap();
+    resetGame(true);
+  }
+
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+  function buildMap(){
+    const wrap = document.getElementById('mapWorlds');
+    wrap.innerHTML = '';
+    WORLDS.forEach((w, wi) => {
+      const firstIdx = wi*LEVELS_PER_WORLD;
+      const unlocked = beaten >= firstIdx;
+      const worldEl = document.createElement('div');
+      worldEl.className = 'world';
+      worldEl.innerHTML =
+        `<div class="wname" style="color:${unlocked ? w.thread : 'var(--muted)'}">${unlocked ? w.name : '? ? ?'}</div>` +
+        `<div class="wtag">${unlocked ? w.tag : 'locked'}</div>`;
+      const nodes = document.createElement('div');
+      nodes.className = 'nodes';
+      for (let l=0; l<LEVELS_PER_WORLD; l++){
+        const i = firstIdx + l;
+        const done = i < beaten, locked = i > beaten;
+        const node = document.createElement('div');
+        node.className = 'node' + (done?' done':'') + (locked?' locked':'') + (i===cur?' current':'');
+        if (done){ node.style.background = w.thread; node.innerHTML = CHECK; }
+        else { node.textContent = l+1; if (!locked){ node.style.color = w.thread; node.style.boxShadow = `inset 0 0 0 1.5px ${w.thread}`; } }
+        if (i===cur){ node.style.outline = `2px solid ${w.thread}`; node.style.outlineOffset = '2px'; }
+        if (!locked) node.addEventListener('click', ()=>loadLevel(i));
+        nodes.appendChild(node);
+      }
+      worldEl.appendChild(nodes);
+      wrap.appendChild(worldEl);
+    });
+  }
+  function openMap(){ winEl.classList.remove('show'); buildMap(); mapEl.classList.add('show'); }
+  function hideMap(){ mapEl.classList.remove('show'); }
+
+  const worldW = () => cols*cellSize;
+  const worldH = () => rows*cellSize;
+  const clampCam = (v, max) => max <= 0 ? max/2 : Math.max(0, Math.min(max, v));
+
+  // ---- layout / sizing ----
+  function layout() {
+    const r = stage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    viewW = r.width; viewH = r.height;
+    // show ~7 cells across, clamped to a comfortable finger size
+    cellSize = Math.max(38, Math.min(66, Math.round(viewW / 7)));
+    tCamX = camX = clampCam(camX, worldW()-viewW);
+    tCamY = camY = clampCam(camY, worldH()-viewH);
+  }
+
+  // ---- input ----
+  const FINGER_LIFT = 1.15; // active point sits ~1.15 cells above the fingertip so it isn't hidden
+
+  function cellAt(clientX, clientY, lift) {
+    const r = canvas.getBoundingClientRect();
+    const px = clientX - r.left;
+    const py = clientY - r.top - (lift ? FINGER_LIFT*cellSize : 0); // lift only while dragging
+    const wx = px + camX, wy = py + camY;
+    if (lift) fingerActive = { x: wx, y: wy };
+    let c = Math.floor(wx / cellSize), rr = Math.floor(wy / cellSize);
+    c = Math.max(0, Math.min(cols-1, c));
+    rr = Math.max(0, Math.min(rows-1, rr));
+    return idx(c, rr);
+  }
+
+  function openNeighbors(i) {
+    const c = cx(i), r = cy(i), out = [];
+    if (!cells[i].walls[0]) out.push(idx(c, r-1)); // N
+    if (!cells[i].walls[1]) out.push(idx(c+1, r)); // E
+    if (!cells[i].walls[2]) out.push(idx(c, r+1)); // S
+    if (!cells[i].walls[3]) out.push(idx(c-1, r)); // W
+    return out;
+  }
+  const dist = (a, b) => Math.abs(cx(a)-cx(b)) + Math.abs(cy(a)-cy(b));
+
+  // Scatter embers — you must gather a quota of them to open the exit, so they're spread
+  // across the maze (biased toward dead ends and side corridors) to force real exploration.
+  function placeEmbers(){
+    embers = new Set(); emberGot = 0;
+    const count = Math.max(4, Math.round(cols*rows * emberDensity));
+    const deadEnds = [], others = [];
+    for (let i=0; i<cols*rows; i++){
+      if (i===startCell || i===endCell) continue;
+      if (dist(i,startCell) < 3) continue;                 // give the opening room to breathe
+      (openNeighbors(i).length === 1 ? deadEnds : others).push(i);
+    }
+    const shuffle = a => { for(let k=a.length-1;k>0;k--){const j=(Math.random()*(k+1))|0;[a[k],a[j]]=[a[j],a[k]];} return a; };
+    const pool = shuffle(deadEnds).concat(shuffle(others));
+    const chosen = [];
+    for (const i of pool){
+      if (chosen.length >= count) break;
+      if (chosen.every(c => dist(c,i) >= 3)) chosen.push(i);   // keep them spread out
+    }
+    chosen.forEach(i => embers.add(i));
+    emberTotal = embers.size;
+    emberNeed = Math.max(1, Math.min(emberTotal, Math.round(emberTotal * needFrac)));
+  }
+  const exitOpen = () => emberGot >= emberNeed;
+
+  // Cast sight from the head: flood through OPEN corridors only, as far as the lantern reaches.
+  // Walls block it, so corners hide what's beyond — you see down your hallway, not through it.
+  function reveal(){
+    sightReach = reachOf(light);
+    const maxDepth = Math.max(1, Math.round(sightReach));
+    nearDepth = new Map();
+    const head = trail[trail.length-1];
+    const q = [head]; nearDepth.set(head, 0); explored.add(head);
+    for (let qi=0; qi<q.length; qi++){
+      const i = q[qi], d = nearDepth.get(i);
+      if (d >= maxDepth) continue;
+      for (const n of openNeighbors(i)){
+        if (!nearDepth.has(n)){ nearDepth.set(n, d+1); explored.add(n); q.push(n); }
+      }
+    }
+  }
+  function brightnessOf(i){
+    if (won) return 0.62;                                    // the way lights up on arrival
+    if (nearDepth.has(i)){
+      let b = 1 - nearDepth.get(i)/sightReach;               // smooth falloff that breathes with the light
+      b = b<=0 ? 0 : (b>=1 ? 1 : b*b*(3-2*b));
+      return Math.max(b, explored.has(i) ? DIM : 0);
+    }
+    return explored.has(i) ? DIM : 0;
+  }
+
+  // One corridor-step: advance into new ground (spending light, gathering embers) or retract
+  // back along the thread (free). Shared by dragging and tap-to-walk so they behave identically.
+  function applyStep(next){
+    const prev = trail.length > 1 ? trail[trail.length-2] : -1;
+    if (next === prev){                            // retract — costs no light
+      const popped = trail.pop();
+      inTrail.delete(popped);
+    } else {                                        // advance into new ground
+      trail.push(next);
+      inTrail.add(next);
+      light = Math.max(0, light - DRAIN);
+      if (embers.has(next)){                        // gather an ember
+        embers.delete(next); emberGot++;
+        light = Math.min(1, light + EMBER_GAIN);
+        blooms.push({ x:(cx(next)+0.5)*cellSize, y:(cy(next)+0.5)*cellSize, t0:performance.now() });
+        if (emberGot === emberNeed){                // just enough — the exit opens
+          showHint('The way is open — follow the light');
+          blooms.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now(), big:true });
+        }
+      }
+    }
+    reveal();
+    if (!started) { started = true; startTime = performance.now(); elHint.style.opacity = '0'; }
+    if (next === endCell){
+      if (exitOpen()) doWin();
+      else {                                        // the way is sealed until the quota is met
+        pings.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now() });
+        showHint(`Gather ${emberNeed - emberGot} more ember${emberNeed-emberGot===1?'':'s'} to open the way`);
+      }
+    }
+  }
+
+  // Shortest corridor route from the head to a tapped cell, staying within what's been seen
+  // (so you can't tap your way through the fog). Unique in a perfect maze.
+  function bfsPath(from, to){
+    if (from === to || !explored.has(to)) return null;
+    // tapping onto your own thread simply retraces back to that point
+    if (inTrail.has(to)){
+      const k = trail.indexOf(to);
+      return k < 0 ? null : trail.slice(k, trail.length-1).reverse();
+    }
+    // otherwise route through seen corridors WITHOUT crossing the existing thread,
+    // so with braided loops the line never knots itself
+    const prevMap = new Map([[from, -1]]);
+    const q = [from];
+    for (let qi=0; qi<q.length; qi++){
+      const i = q[qi];
+      if (i === to) break;
+      for (const n of openNeighbors(i)){
+        if (!explored.has(n) || prevMap.has(n)) continue;
+        if (inTrail.has(n) && n !== to) continue;   // don't walk over the thread
+        prevMap.set(n, i); q.push(n);
+      }
+    }
+    if (!prevMap.has(to)) return null;
+    const path = []; let cur = to;
+    while (cur !== from){ path.push(cur); cur = prevMap.get(cur); }
+    return path.reverse();
+  }
+
+  // Move the trail head toward the finger cell, one valid corridor-step at a time.
+  // Because the finger is physically on the corridor being traced, "step toward finger"
+  // reliably follows the path — no global pathfinding needed.
+  function stepToward(target) {
+    let guard = 0;
+    while (guard++ < 24) {
+      const head = trail[trail.length-1];
+      if (head === target || won) break;
+      const prev = trail.length > 1 ? trail[trail.length-2] : -1;
+      const nbrs = openNeighbors(head);
+      let best = -1, bestD = dist(head, target);
+      for (const n of nbrs) {
+        const d = dist(n, target);
+        if (d >= bestD) continue;                 // must make progress toward the finger
+        if (n === prev || !inTrail.has(n)) {      // retrace previous, or explore new
+          if (d < bestD) { best = n; bestD = d; }
+        }
+      }
+      if (best === -1) break;
+      applyStep(best);
+    }
+  }
+
+  function onDown(e){
+    if (won) return;
+    dragging = true; moved = false;
+    downX = e.clientX; downY = e.clientY;
+    walkQueue.length = 0;                 // a new touch cancels any auto-walk in progress
+  }
+  function onMove(e){
+    if (!dragging || won) return;
+    if (!moved && Math.hypot(e.clientX-downX, e.clientY-downY) < DRAG_THRESH) return;
+    moved = true;                         // past the threshold: this is a drag
+    e.preventDefault();
+    stepToward(cellAt(e.clientX, e.clientY, true));
+  }
+  function onUp(e){
+    dragging = false; fingerActive = null;
+    if (won || moved) return;             // a drag already handled it
+    const target = cellAt(e.clientX, e.clientY, false);   // a tap: walk there along the corridor
+    const path = bfsPath(trail[trail.length-1], target);
+    if (path && path.length){
+      walkQueue = path; walkAcc = 0;
+      pings.push({ x:(cx(target)+0.5)*cellSize, y:(cy(target)+0.5)*cellSize, t0:performance.now() });
+    }
+  }
+
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); onDown(e); });
+  canvas.addEventListener('pointermove', onMove, {passive:false});
+  canvas.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', onUp);
+
+  function doWin(){
+    if (won) return;
+    won = true; dragging = false; fingerActive = null; walkQueue.length = 0;
+    beaten = Math.max(beaten, cur+1); saveProgress();
+    elapsed = started ? (performance.now() - startTime) : 0;
+    document.getElementById('wtime').firstChild.nodeValue = fmt(elapsed);
+    document.getElementById('wsteps').firstChild.nodeValue = String(trail.length-1);
+    document.getElementById('wembers').firstChild.nodeValue = `${emberGot}/${emberTotal}`;
+    const last = cur+1 >= TOTAL;
+    const nextBtn = document.getElementById('next');
+    nextBtn.textContent = last ? 'Play again' : 'Next level';
+    const tags = ["You found the way through.","The lantern carried you home.","The thread held.","Out, and still glowing."];
+    document.getElementById('wintag').textContent = last ? 'You’ve threaded every world.' : tags[(Math.random()*tags.length)|0];
+    document.getElementById('winh2').textContent = last ? 'Complete.' : 'Out.';
+    setTimeout(()=>winEl.classList.add('show'), 420);
+  }
+
+  // ---- camera follow (dead-zone + easing) ----
+  function updateCamera(){
+    const head = trail[trail.length-1];
+    const hx = (cx(head)+0.5)*cellSize, hy = (cy(head)+0.5)*cellSize;
+    if (walkQueue.length > 0){
+      // tap-walking: no finger involved, so keep the lantern centred as the maze glides past
+      tCamX = hx - viewW/2;
+      tCamY = hy - viewH/2;
+    } else {
+      // dragging (or idle): hold a still patch of world so the finger maps to a stable cell
+      const dzX = viewW*0.24, dzY = viewH*0.22;
+      if (hx < tCamX + dzX) tCamX = hx - dzX;
+      if (hx > tCamX + viewW - dzX) tCamX = hx - viewW + dzX;
+      if (hy < tCamY + dzY) tCamY = hy - dzY;
+      if (hy > tCamY + viewH - dzY) tCamY = hy - viewH + dzY;
+    }
+    tCamX = clampCam(tCamX, worldW()-viewW);
+    tCamY = clampCam(tCamY, worldH()-viewH);
+    camX += (tCamX - camX) * 0.16;
+    camY += (tCamY - camY) * 0.16;
+  }
+
+  // ---- render ----
+  function draw(t){
+    ctx.clearRect(0,0,viewW,viewH);
+    // ambient floor
+    ctx.fillStyle = T.bg;
+    ctx.fillRect(0,0,viewW,viewH);
+
+    const c0 = Math.max(0, Math.floor(camX/cellSize));
+    const r0 = Math.max(0, Math.floor(camY/cellSize));
+    const c1 = Math.min(cols-1, Math.ceil((camX+viewW)/cellSize));
+    const r1 = Math.min(rows-1, Math.ceil((camY+viewH)/cellSize));
+
+    // maze under fog: only explored cells render, brightest where the thread's light reaches
+    ctx.lineWidth = Math.max(3, cellSize*0.085);
+    ctx.lineCap = 'round';
+    const wallCol = getVar('--wall'), thread = getVar('--thread');
+    for (let r=r0; r<=r1; r++){
+      for (let c=c0; c<=c1; c++){
+        const i = idx(c,r);
+        const b = brightnessOf(i);
+        if (b <= 0) continue;                     // unexplored stays dark
+        const x = c*cellSize - camX, y = r*cellSize - camY, s = cellSize;
+        if (b > DIM){                             // warm floor glow the thread casts
+          ctx.globalAlpha = 0.09 * b;
+          ctx.fillStyle = thread;
+          ctx.fillRect(x, y, s, s);
+        }
+        ctx.globalAlpha = Math.min(0.95, 0.12 + 0.85*b);
+        ctx.strokeStyle = wallCol;
+        const w = cells[i].walls;
+        ctx.beginPath();
+        if (w[0]){ ctx.moveTo(x,y); ctx.lineTo(x+s,y); }
+        if (w[3]){ ctx.moveTo(x,y); ctx.lineTo(x,y+s); }
+        if (w[1]){ ctx.moveTo(x+s,y); ctx.lineTo(x+s,y+s); }
+        if (w[2]){ ctx.moveTo(x,y+s); ctx.lineTo(x+s,y+s); }
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // deepen the dark beyond the reach of the light — and let it close in as the lantern gutters
+    const lowLight = 1 - light;                               // 0 (full) .. 1 (guttering)
+    const inner = viewH*(0.16 - lowLight*0.07);               // lit pool tightens
+    const darkA = 0.55 + lowLight*0.30;                       // 0.55 .. 0.85
+    const vg = ctx.createRadialGradient(viewW/2, viewH*0.46, Math.max(0,inner), viewW/2, viewH*0.46, viewH*0.72);
+    vg.addColorStop(0, 'rgba(6,10,12,0)');
+    vg.addColorStop(1, `rgba(5,9,11,${darkA})`);
+    ctx.fillStyle = vg; ctx.fillRect(0,0,viewW,viewH);
+
+    if (explored.has(startCell)) drawMarker(startCell, T.start, false, t);
+    drawBeacon(t);
+    drawEmbers(t);
+    drawBlooms();
+
+    // the thread
+    if (trail.length > 1){
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      // glow underlay
+      ctx.strokeStyle = `rgba(${T.threadRGB},0.22)`;
+      ctx.lineWidth = cellSize*0.5;
+      strokeTrail();
+      // core
+      const grad = ctx.createLinearGradient(0,0,viewW,viewH);
+      grad.addColorStop(0, getVar('--thread'));
+      grad.addColorStop(1, T.core);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = cellSize*0.2;
+      strokeTrail();
+    }
+    // head bead
+    const head = trail[trail.length-1];
+    const hx = (cx(head)+0.5)*cellSize - camX, hy = (cy(head)+0.5)*cellSize - camY;
+    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.17, 0, 7);
+    ctx.fillStyle = getVar('--thread-core'); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.30, 0, 7);
+    ctx.strokeStyle = `rgba(${T.coreRGB},0.35)`; ctx.lineWidth = 2; ctx.stroke();
+
+    // finger ghost ring (shows the lifted active point)
+    if (fingerActive && dragging){
+      const gx = fingerActive.x - camX, gy = fingerActive.y - camY;
+      ctx.beginPath(); ctx.arc(gx, gy, cellSize*0.34, 0, 7);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  function strokeTrail(){
+    ctx.beginPath();
+    for (let k=0;k<trail.length;k++){
+      const i = trail[k];
+      const x=(cx(i)+0.5)*cellSize-camX, y=(cy(i)+0.5)*cellSize-camY;
+      k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  function drawMarker(i, color, pulse, t){
+    const x=(cx(i)+0.5)*cellSize-camX, y=(cy(i)+0.5)*cellSize-camY;
+    if (pulse){
+      const p = (Math.sin(t/520)*0.5+0.5);
+      ctx.beginPath(); ctx.arc(x,y, cellSize*(0.28+0.22*p), 0, 7);
+      ctx.strokeStyle = `rgba(${T.beaconRGB},${0.5-0.4*p})`; ctx.lineWidth=2.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y, cellSize*0.2, 0, 7);
+      ctx.fillStyle = color; ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(x,y, cellSize*0.19, 0, 7);
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+    }
+  }
+
+  // The exit shines through the fog — a light to head toward. It stays sealed (a dim ring)
+  // until you've gathered enough embers, then opens into a bright, pulsing beacon.
+  function drawBeacon(t){
+    const head = trail[trail.length-1];
+    const open = exitOpen();
+    const bx=(cx(endCell)+0.5)*cellSize, by=(cy(endCell)+0.5)*cellSize;
+    const hx=(cx(head)+0.5)*cellSize, hy=(cy(head)+0.5)*cellSize;
+    const dCells = Math.hypot(bx-hx, by-hy)/cellSize;
+    const intensity = Math.max(0.05, Math.min(1, 1 - dCells/16)) * (open ? 1 : 0.5);
+    const sx = bx - camX, sy = by - camY;
+    const cyan = T.beaconRGB;
+    const onScreen = sx>-cellSize && sx<viewW+cellSize && sy>-cellSize && sy<viewH+cellSize;
+    if (onScreen){
+      const p = Math.sin(t/520)*0.5+0.5;
+      const rad = cellSize*(0.8 + 2.4*intensity);
+      const g = ctx.createRadialGradient(sx,sy,0, sx,sy,rad);
+      g.addColorStop(0, `rgba(${cyan},${0.5*intensity})`);
+      g.addColorStop(1, `rgba(${cyan},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
+      if (explored.has(endCell)){
+        if (open){                                   // open: bright pulsing beacon
+          ctx.beginPath(); ctx.arc(sx,sy, cellSize*(0.28+0.18*p),0,7);
+          ctx.strokeStyle=`rgba(${cyan},${0.6-0.4*p})`; ctx.lineWidth=2.5; ctx.stroke();
+          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.2,0,7); ctx.fillStyle=getVar('--beacon'); ctx.fill();
+        } else {                                     // sealed: a quiet, dim locked ring
+          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.26,0,7);
+          ctx.strokeStyle=`rgba(${cyan},0.34)`; ctx.lineWidth=2; ctx.stroke();
+          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.13,0,7);
+          ctx.strokeStyle=`rgba(${cyan},0.5)`; ctx.lineWidth=2; ctx.stroke();
+        }
+      } else {
+        ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.1*intensity+2,0,7);
+        ctx.fillStyle=`rgba(${cyan},${0.6*intensity})`; ctx.fill();
+      }
+    } else {
+      // edge compass: which way is the light
+      const ccx=viewW/2, ccy=viewH/2, dx=sx-ccx, dy=sy-ccy, m=24;
+      const tx = dx!==0 ? ((dx>0?viewW-m:m)-ccx)/dx : Infinity;
+      const ty = dy!==0 ? ((dy>0?viewH-m:m)-ccy)/dy : Infinity;
+      const tt = Math.min(Math.abs(tx),Math.abs(ty));
+      const ex=ccx+dx*tt, ey=ccy+dy*tt, ang=Math.atan2(dy,dx);
+      ctx.save(); ctx.translate(ex,ey); ctx.rotate(ang);
+      ctx.globalAlpha = (open ? 0.3 : 0.18) + 0.5*intensity; ctx.fillStyle = getVar('--beacon');
+      ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-5,-5); ctx.lineTo(-5,5); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; ctx.restore();
+    }
+  }
+
+  // Embers: warm motes that glow faintly through the fog nearby, inviting a gentle detour.
+  function drawEmbers(t){
+    const head = trail[trail.length-1];
+    const warm = T.ember;
+    const lowLight = 1 - light;
+    const nearRange = 5 + lowLight*4;                          // in the dark, sense embers from further off
+    const boost = 1 + lowLight*0.6;                            // and they burn a little brighter
+    embers.forEach(i => {
+      const dCells = dist(i, head);
+      const inSight = nearDepth.has(i);
+      if (!inSight && !explored.has(i) && dCells > nearRange) return;   // still hidden in the dark
+      let intensity = inSight ? 1 : (explored.has(i) ? 0.6 : Math.max(0, 0.7 - dCells/(nearRange+4)));
+      intensity = Math.min(1, intensity*boost);
+      if (intensity <= 0.02) return;
+      const bob = Math.sin(t/700 + i)*cellSize*0.06;
+      const sx = (cx(i)+0.5)*cellSize - camX;
+      const sy = (cy(i)+0.5)*cellSize - camY + bob;
+      if (sx<-cellSize||sx>viewW+cellSize||sy<-cellSize||sy>viewH+cellSize) return;
+      const rad = cellSize*(0.34 + 0.34*intensity);
+      const g = ctx.createRadialGradient(sx,sy,0, sx,sy,rad);
+      g.addColorStop(0, `rgba(${warm},${0.55*intensity})`);
+      g.addColorStop(1, `rgba(${warm},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.08, 0, 7);
+      ctx.fillStyle = `rgba(${T.coreRGB},${0.5+0.4*intensity})`; ctx.fill();
+    });
+  }
+
+  // Soft ripple when an ember is gathered.
+  function drawBlooms(){
+    const now = performance.now(), LIFE = 620;
+    blooms = blooms.filter(b => now - b.t0 < LIFE);
+    for (const b of blooms){
+      const p = (now - b.t0)/LIFE;                 // 0..1
+      const scale = b.big ? 2.4 : 1;
+      const rad = cellSize*(0.2 + p*1.3)*scale;
+      ctx.beginPath(); ctx.arc(b.x-camX, b.y-camY, rad, 0, 7);
+      const col = b.big ? T.beaconRGB : T.ember;
+      ctx.strokeStyle = `rgba(${col},${0.5*(1-p)})`; ctx.lineWidth = 2.5*(1-p)+0.5; ctx.stroke();
+    }
+    // quick ring acknowledging a tap
+    const TAP = 360;
+    pings = pings.filter(b => now - b.t0 < TAP);
+    for (const b of pings){
+      const p = (now - b.t0)/TAP;
+      const rad = cellSize*(0.15 + p*0.5);
+      ctx.beginPath(); ctx.arc(b.x-camX, b.y-camY, rad, 0, 7);
+      ctx.strokeStyle = `rgba(${T.coreRGB},${0.55*(1-p)})`; ctx.lineWidth = 2*(1-p)+0.5; ctx.stroke();
+    }
+  }
+
+  // ---- helpers ----
+  let varCache = {};
+  function getVar(name){ return varCache[name] || (varCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim()); }
+  function fmt(ms){ const s=Math.floor(ms/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+  function showHint(msg){
+    elHint.textContent = msg;
+    elHint.style.opacity = '1';
+    if (hintTimer) clearTimeout(hintTimer);
+    hintTimer = setTimeout(()=>{ elHint.style.opacity = '0'; }, 2600);
+  }
+  function updateHud(){
+    const open = exitOpen();
+    elEmbers.textContent = open ? `${emberNeed}/${emberNeed}` : `${Math.min(emberGot,emberNeed)}/${emberNeed}`;
+    elEmbers.parentElement.style.color = open ? T.beacon : '';
+    elEmbers.previousElementSibling && (elEmbers.previousElementSibling.style.background = open ? T.beacon : '');
+    elLightFill.style.width = Math.round(light*100) + '%';
+    elTime.textContent = fmt(won ? elapsed : (started ? performance.now()-startTime : 0));
+  }
+
+  // ---- loop ----
+  function frame(t){
+    const dt = lastT ? t - lastT : 0; lastT = t;
+    if (walkQueue.length && !won){        // glide the thread along a tapped route
+      walkAcc += dt;
+      while (walkAcc >= STEP_MS && walkQueue.length && !won){
+        walkAcc -= STEP_MS;
+        applyStep(walkQueue.shift());
+      }
+    }
+    updateCamera();
+    draw(t);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- controls ----
+  document.getElementById('reset').addEventListener('click', ()=>loadLevel(cur));         // fresh maze, same level
+  document.getElementById('next').addEventListener('click', ()=>loadLevel(cur+1 < TOTAL ? cur+1 : cur));
+  document.getElementById('tomap').addEventListener('click', openMap);
+  document.getElementById('mapClose').addEventListener('click', hideMap);
+  markEl.addEventListener('click', openMap);
+
+  let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(()=>layout(), 120); });
+
+  // go
+  loadProgress();
+  loadLevel(Math.min(beaten, TOTAL-1));   // resume at the next unbeaten level
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
