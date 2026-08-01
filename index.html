@@ -183,9 +183,26 @@
     { name:'Dusk',  tag:'last light',    bg:'#161022', app:'#171226', wall:'#443a5e', thread:'#e6a0ff', threadRGB:'230,160,255', core:'#f7ecff', coreRGB:'247,236,255', start:'#a08ac0', beacon:'#7dffd0', beaconRGB:'125,255,208', ember:'220,170,255' },
     { name:'Ash',   tag:'no colour left',bg:'#111315', app:'#141618', wall:'#3d4348', thread:'#f4f6f8', threadRGB:'244,246,248', core:'#ffffff', coreRGB:'255,255,255', start:'#9aa2a8', beacon:'#ffb45b', beaconRGB:'255,180,91',  ember:'220,226,230' },
   ];
+  // per-world atmosphere: drifting particles + a floor texture, so each world feels like a place
+  const WORLD_FX = [
+    { part:{ type:'spark',  n:30, color:'255,190,120', size:[0.6,1.8], vy:-0.22, drift:0.18, twinkle:true  }, floor:'grain'    },
+    { part:{ type:'bubble', n:24, color:'150,215,255', size:[1.2,3.4], vy:-0.42, drift:0.30, twinkle:false }, floor:'caustics' },
+    { part:{ type:'spore',  n:28, color:'200,225,150', size:[0.9,2.4], vy: 0.07, drift:0.40, twinkle:false }, floor:'speckle'  },
+    { part:{ type:'star',   n:46, color:'224,196,255', size:[0.5,1.7], vy: 0.0,  drift:0.03, twinkle:true  }, floor:'none', haze:'40,26,74' },
+    { part:{ type:'ash',    n:34, color:'200,205,210', size:[0.9,2.2], vy: 0.55, drift:0.22, twinkle:false }, floor:'cracks'   },
+  ];
+  let curWorld = 0;
+  const hash = (i,s)=>{ const x=Math.sin(i*127.1 + s*311.7)*43758.5453; return x-Math.floor(x); };
+  // colour helpers for solid, fog-faded walls
+  const toRGB = hex => { const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; };
+  function shadeRGB(hex, f){ let [R,G,B]=toRGB(hex); if(f>=0){R+=(255-R)*f;G+=(255-G)*f;B+=(255-B)*f;} else {R*=(1+f);G*=(1+f);B*=(1+f);} return [R|0,G|0,B|0]; }
+  const mixRGB = (a,b,t)=>`rgb(${(a[0]+(b[0]-a[0])*t)|0},${(a[1]+(b[1]-a[1])*t)|0},${(a[2]+(b[2]-a[2])*t)|0})`;
+  let wallCoreRGB = [90,106,114], wallHiRGB = [150,164,172], bgRGB = [14,23,27];
+  const WALL_SHADOW = [4,7,11];
   const LEVELS_PER_WORLD = 5;
   const TOTAL = WORLDS.length * LEVELS_PER_WORLD;
   const worldOf = i => Math.floor(i / LEVELS_PER_WORLD);
+  const PREVIEW_UNLOCK = true;   // TEMP: unlock every level for previewing the worlds
   const levelOf = i => i % LEVELS_PER_WORLD;
 
   let cur = 0;                 // current level index (0..TOTAL-1)
@@ -354,6 +371,7 @@
   // ---- worlds: apply a style, load a level, show the map ----
   function applyTheme(w){
     T = WORLDS[w];
+    curWorld = w;
     const rs = document.documentElement.style;
     rs.setProperty('--app', T.app);
     rs.setProperty('--wall', T.wall);
@@ -366,6 +384,8 @@
       elLightFill.style.boxShadow = `0 0 10px rgba(${T.threadRGB},.6)`;
     }
     if (markEl) markEl.style.color = T.thread;
+    wallCoreRGB = shadeRGB(T.wall, 0.32); wallHiRGB = shadeRGB(T.wall, 0.62); bgRGB = toRGB(T.bg); // solid wall tones
+    seedParticles();
   }
 
   function loadLevel(i){
@@ -388,7 +408,7 @@
     wrap.innerHTML = '';
     WORLDS.forEach((w, wi) => {
       const firstIdx = wi*LEVELS_PER_WORLD;
-      const unlocked = beaten >= firstIdx;
+      const unlocked = PREVIEW_UNLOCK || beaten >= firstIdx;
       const worldEl = document.createElement('div');
       worldEl.className = 'world';
       worldEl.innerHTML =
@@ -398,7 +418,7 @@
       nodes.className = 'nodes';
       for (let l=0; l<LEVELS_PER_WORLD; l++){
         const i = firstIdx + l;
-        const done = i < beaten, locked = i > beaten;
+        const done = i < beaten, locked = !PREVIEW_UNLOCK && i > beaten;
         const node = document.createElement('div');
         node.className = 'node' + (done?' done':'') + (locked?' locked':'') + (i===cur?' current':'');
         if (done){ node.style.background = w.thread; node.innerHTML = CHECK; }
@@ -430,6 +450,7 @@
     cellSize = Math.max(38, Math.min(66, Math.round(viewW / 7)));
     tCamX = camX = clampCam(camX, worldW()-viewW);
     tCamY = camY = clampCam(camY, worldH()-viewH);
+    seedParticles();
   }
 
   // ---- input ----
@@ -738,6 +759,116 @@
     camY += (tCamY - camY) * 0.16;
   }
 
+  // ---- per-world atmosphere ----
+  let parts = [];
+  function seedParticles(){
+    const f = WORLD_FX[curWorld].part, w = viewW||400, h = viewH||800;
+    parts = [];
+    for (let k=0;k<f.n;k++) parts.push({
+      x: Math.random()*w, y: Math.random()*h,
+      r: f.size[0] + Math.random()*(f.size[1]-f.size[0]),
+      ph: Math.random()*6.28, sp: 0.6 + Math.random()*0.8
+    });
+  }
+  function drawParticles(t){
+    const f = WORLD_FX[curWorld].part;
+    for (const p of parts){
+      p.y += f.vy * p.sp;
+      p.x += Math.sin(t/900 + p.ph) * f.drift;
+      if (p.y < -4) p.y = viewH+4; else if (p.y > viewH+4) p.y = -4;
+      if (p.x < -4) p.x = viewW+4; else if (p.x > viewW+4) p.x = -4;
+      let a = 0.5;
+      if (f.twinkle) a = 0.25 + 0.5*(0.5+0.5*Math.sin(t/300 + p.ph*3));
+      if (f.type==='bubble'){
+        ctx.strokeStyle = `rgba(${f.color},${a*0.5})`; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.stroke();
+        ctx.fillStyle = `rgba(${f.color},${a*0.12})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+      } else if (f.type==='star'){
+        ctx.fillStyle = `rgba(${f.color},${a})`;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.7,0,7); ctx.fill();
+      } else {
+        ctx.fillStyle = `rgba(${f.color},${a*0.55})`;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+      }
+    }
+  }
+  // smooth value noise (continuous across cells) for mottled materials
+  // ---- Minecraft-Dungeons-style block floor: chunky pixel tiles, one block per cell ----
+  const BLOCK = [
+    { base:['#3a2620','#472c22','#2f211d','#523228'], acc:['#c85a2a','#e0742f'], mortar:'#20140f', feat:'glow'    }, // Ember  (warm stone)
+    { base:['#1f4a52','#256069','#1a3f4a','#2d6b74'], acc:['#4fb0a8','#7fd8c8'], mortar:'#123037', feat:'wave', shades:['#153a44','#1c4c56','#256069','#3a8a92','#6fd2d2'] }, // Tide (rippling water)
+    { base:['#4a4f4c','#565b57','#3f443f','#515651'], acc:['#4a6b3a','#5f7d44'], mortar:'#2a2e2b', feat:'moss'    }, // Moss   (mossy cobble)
+    { base:['#3a2b52','#463466','#2f2444','#4a3a6e'], acc:['#8a5fb0','#a877cc'], mortar:'#221936', feat:'sparkle' }, // Dusk   (purpur)
+    { base:['#42464a','#4c5054','#3a3e42','#54585c'], acc:['#666a6e','#5a5e62'], mortar:'#26292c', feat:'brick'   }, // Ash    (cracked brick)
+  ];
+  const tileCache = {};
+  function genTile(w, seed, phase){
+    const P = BLOCK[w], N = 16, cnv = document.createElement('canvas'); cnv.width = cnv.height = N;
+    const g = cnv.getContext('2d');
+    const R = (x,y,o)=>{ const n=Math.sin(x*12.9898 + y*78.233 + seed*3.7 + o*19.1)*43758.5453; return n-Math.floor(n); };
+    if (P.feat==='wave'){                            // continuous rippling water — no block mortar
+      const sh = P.shades, k = Math.PI*2/N;
+      for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+        const wv = Math.sin(x*k*2 + y*k - phase)*0.6 + Math.sin(x*k - y*k*2 - phase*0.7)*0.4;   // -1..1, seamless
+        const lvl = (wv+1)/2;
+        g.fillStyle = sh[Math.min(sh.length-1, Math.floor(lvl*sh.length))];
+        g.fillRect(x,y,1,1);
+      }
+      return cnv;
+    }
+    for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+      let col = P.base[Math.floor(R(x,y,1)*P.base.length)];
+      if (P.feat==='moss'){
+        const m = R(x,y,2)*0.55 + (Math.sin(x*0.55+seed)+Math.sin(y*0.5+seed*1.3))*0.22 + 0.2;
+        if (m>0.72) col = P.acc[Math.floor(R(x,y,3)*P.acc.length)];
+      } else if (P.feat==='glow')   { if (R(x,y,4)>0.94) col = P.acc[Math.floor(R(x,y,5)*P.acc.length)]; }
+      else if (P.feat==='sparkle')  { if (R(x,y,4)>0.96) col = P.acc[Math.floor(R(x,y,5)*P.acc.length)]; }
+      g.fillStyle = col; g.fillRect(x,y,1,1);
+    }
+    // mortar bevel around the block so cells read as separate blocks
+    g.fillStyle = P.mortar; g.globalAlpha = 0.55;
+    g.fillRect(0,0,N,1); g.fillRect(0,N-1,N,1); g.fillRect(0,0,1,N); g.fillRect(N-1,0,1,N);
+    g.globalAlpha = 1;
+    if (P.feat==='brick'){                          // offset brick mortar + a crack
+      g.fillStyle = P.mortar; g.globalAlpha = 0.6;
+      g.fillRect(0,7,N,1); g.fillRect(0,15,N,1);
+      g.fillRect(8,0,1,8); g.fillRect(4,8,1,8);
+      g.globalAlpha = 0.7;
+      let cxk = 2 + Math.floor(R(0,0,9)*(N-4));
+      for (let y=1;y<N-1;y++){ g.fillRect(cxk,y,1,1); cxk += Math.floor(R(cxk,y,10)*3)-1; cxk = Math.max(1,Math.min(N-2,cxk)); }
+      g.globalAlpha = 1;
+    }
+    if (P.feat==='glow'){                            // a hot vein through the warm stone
+      g.fillStyle = P.acc[0]; g.globalAlpha = 0.9;
+      let cxk = 2 + Math.floor(R(1,1,11)*(N-4));
+      for (let y=2;y<N-2;y++){ if (R(cxk,y,12)>0.35){ g.fillRect(cxk,y,1,1); } cxk += Math.floor(R(cxk,y,13)*3)-1; cxk = Math.max(2,Math.min(N-3,cxk)); }
+      g.globalAlpha = 1;
+    }
+    return cnv;
+  }
+  function blockTiles(w){
+    if (tileCache[w]) return tileCache[w];
+    let set;
+    if (BLOCK[w].feat==='wave'){
+      const frames = [], N = 8;
+      for (let f=0; f<N; f++) frames.push(genTile(w, 7, (f/N)*Math.PI*2));
+      set = { animated:true, tiles:frames };
+    } else {
+      const arr = []; for (let v=0;v<4;v++) arr.push(genTile(w, v*97+13, 0));
+      set = { animated:false, tiles:arr };
+    }
+    return (tileCache[w] = set);
+  }
+  function drawFloorBlock(i,b,x,y,s,t){
+    const set = blockTiles(curWorld);
+    const tile = set.animated
+      ? set.tiles[Math.floor(t/120) % set.tiles.length]         // water ripples in sync
+      : set.tiles[Math.floor(hash(i,7)*set.tiles.length) % set.tiles.length];
+    ctx.globalAlpha = Math.min(1, 0.12 + 0.88*b);
+    ctx.drawImage(tile, x, y, s+0.6, s+0.6);        // slight overlap avoids seams when scaled
+    ctx.globalAlpha = 1;
+  }
+
   // ---- render ----
   function draw(t){
     ctx.clearRect(0,0,viewW,viewH);
@@ -751,32 +882,64 @@
     const r1 = Math.min(rows-1, Math.ceil((camY+viewH)/cellSize));
 
     // maze under fog: only explored cells render, brightest where the thread's light reaches
-    ctx.lineWidth = Math.max(3, cellSize*0.085);
-    ctx.lineCap = 'round';
-    const wallCol = getVar('--wall'), thread = getVar('--thread');
+    const thread = getVar('--thread');
+    const WB = 5, wallBuckets = Array.from({length:WB},()=>[]);   // segments grouped by brightness
+    ctx.imageSmoothingEnabled = false;                          // keep the pixel blocks crisp
     for (let r=r0; r<=r1; r++){
       for (let c=c0; c<=c1; c++){
         const i = idx(c,r);
         const b = brightnessOf(i);
         if (b <= 0) continue;                     // unexplored stays dark
         const x = c*cellSize - camX, y = r*cellSize - camY, s = cellSize;
-        if (b > DIM){                             // warm floor glow the thread casts
-          ctx.globalAlpha = 0.09 * b;
+        drawFloorBlock(i, b, x, y, s, t);         // chunky pixel block for this cell
+        if (b > DIM){                             // warm lantern light pooled on top
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = 0.05 * b;
           ctx.fillStyle = thread;
           ctx.fillRect(x, y, s, s);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1;
         }
-        ctx.globalAlpha = Math.min(0.95, 0.12 + 0.85*b);
-        ctx.strokeStyle = wallCol;
         const w = cells[i].walls;
-        ctx.beginPath();
-        if (w[0]){ ctx.moveTo(x,y); ctx.lineTo(x+s,y); }
-        if (w[3]){ ctx.moveTo(x,y); ctx.lineTo(x,y+s); }
-        if (w[1]){ ctx.moveTo(x+s,y); ctx.lineTo(x+s,y+s); }
-        if (w[2]){ ctx.moveTo(x,y+s); ctx.lineTo(x+s,y+s); }
-        ctx.stroke();
+        if (w[0]||w[1]||w[2]||w[3]){
+          const bkt = wallBuckets[Math.min(WB-1, Math.floor(b*WB))];
+          if (w[0]) bkt.push(x,y,x+s,y);
+          if (w[3]) bkt.push(x,y,x,y+s);
+          if (w[1]) bkt.push(x+s,y,x+s,y+s);
+          if (w[2]) bkt.push(x,y+s,x+s,y+s);
+        }
       }
     }
+    ctx.imageSmoothingEnabled = true;
     ctx.globalAlpha = 1;
+
+    // walls: solid & opaque, drawn in batched passes — all shadows first, then all cores, then a
+    // thin highlight. No transparency and single-stroke-per-batch, so overlaps never show.
+    const thick = Math.max(4, cellSize*0.14);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const strokeBuckets = (col, lw, dx, dy, lighten)=>{
+      ctx.save(); if (dx||dy) ctx.translate(dx,dy); ctx.lineWidth = lw;
+      for (let lvl=0; lvl<WB; lvl++){
+        const arr = wallBuckets[lvl]; if (!arr.length) continue;
+        const bb = (lvl+0.5)/WB;
+        ctx.strokeStyle = mixRGB(col, bgRGB, 1-bb);
+        ctx.beginPath();
+        for (let k=0;k<arr.length;k+=4){ ctx.moveTo(arr[k],arr[k+1]); ctx.lineTo(arr[k+2],arr[k+3]); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+    strokeBuckets(WALL_SHADOW, thick*1.2, 1.7, 1.7);            // drop shadow (opaque)
+    strokeBuckets(wallCoreRGB, thick, 0, 0);                    // solid raised core
+    strokeBuckets(wallHiRGB, Math.max(1.2, thick*0.3), -0.7, -0.9);  // top highlight edge
+
+    drawParticles(t);                                         // drifting atmosphere in the lantern light
+    const haze = WORLD_FX[curWorld].haze;
+    if (haze){                                                // soft world tint (e.g. Dusk twilight)
+      const hg = ctx.createRadialGradient(viewW/2, viewH*0.44, 0, viewW/2, viewH*0.44, viewH*0.7);
+      hg.addColorStop(0, `rgba(${haze},0.16)`); hg.addColorStop(1, `rgba(${haze},0)`);
+      ctx.fillStyle = hg; ctx.fillRect(0,0,viewW,viewH);
+    }
 
     // deepen the dark beyond the reach of the light — and let it close in as the lantern gutters
     const lowLight = 1 - light;                               // 0 (full) .. 1 (guttering)
@@ -1048,6 +1211,7 @@
   // go
   loadProgress();
   loadLevel(Math.min(beaten, TOTAL-1));   // resume at the next unbeaten level
+  if (PREVIEW_UNLOCK) openMap();           // TEMP: show the map right away for previewing
   requestAnimationFrame(frame);
 })();
 </script>
