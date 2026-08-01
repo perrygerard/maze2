@@ -102,20 +102,24 @@
   .sheet.show{display:flex;animation:fade .28s ease both;}
   .sheet h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin:2px 2px 2px;}
   .sheet .sub{color:var(--muted);font-size:12.5px;margin:0 2px 18px;max-width:280px;line-height:1.4;}
-  .sheetclose{position:absolute;top:16px;right:16px;}
-  .world{margin-bottom:20px;}
-  .world .wname{font-family:"Fraunces",serif;font-size:17px;font-weight:600;line-height:1.1;}
-  .world .wtag{color:var(--muted);font-size:10px;letter-spacing:.15em;text-transform:uppercase;margin:1px 0 9px;}
-  .nodes{display:flex;gap:9px;flex-wrap:wrap;}
-  .node{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex:none;
-    font-weight:600;font-size:15px;border:1px solid var(--line);cursor:pointer;
-    background:rgba(255,255,255,.03);color:var(--ink);transition:transform .12s;
-    font-variant-numeric:tabular-nums;}
-  .node:active{transform:scale(.94);}
-  .node.locked{opacity:.3;cursor:default;}
-  .node.done{color:#12181c;}
-  .node.done svg{width:18px;height:18px;}
-  .node.current{outline:2px solid currentColor;outline-offset:2px;}
+  .sheetclose{position:absolute;top:16px;right:16px;z-index:3;}
+  .trail{position:relative;margin:6px auto 30px;}
+  .trail svg.path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .band{position:absolute;left:-18px;right:-18px;pointer-events:none;}
+  .wlabel{position:absolute;left:0;right:0;text-align:center;pointer-events:none;}
+  .wlabel .wn{font-family:"Fraunces",serif;font-weight:600;font-size:19px;line-height:1;}
+  .wlabel .wt{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+  .pnode{position:absolute;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;
+    display:grid;place-items:center;cursor:pointer;font-weight:600;font-size:16px;
+    border:2px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--ink);
+    font-variant-numeric:tabular-nums;transition:transform .12s;z-index:2;}
+  .pnode:active{transform:translate(-50%,-50%) scale(.92);}
+  .pnode.locked{opacity:.32;cursor:default;}
+  .pnode.done{color:#12181c;border-color:transparent;}
+  .pnode.done svg{width:20px;height:20px;}
+  .pnode.current{animation:nodepulse 1.4s ease-in-out infinite;}
+  @keyframes nodepulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}50%{box-shadow:0 0 0 6px rgba(255,255,255,.12)}}
+  .pnode .you{position:absolute;top:-22px;font-family:"Fraunces",serif;font-size:11px;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -128,6 +132,9 @@
       </div>
       <span class="fig ember"><i></i><span id="embers">0/0</span></span>
       <span class="fig"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg><span id="time">0:00</span></span>
+      <button class="iconbtn" id="mute" title="Sound" aria-label="Sound">
+        <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
+      </button>
       <button class="iconbtn" id="reset" title="New maze" aria-label="New maze">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
       </button>
@@ -174,6 +181,75 @@
   const winEl = document.getElementById('win');
   const markEl = document.querySelector('.mark');
   const mapEl = document.getElementById('map');
+
+  // ---- sound: fully synthesized (Web Audio), so the game stays one self-contained file ----
+  // Everything sits in a minor-pentatonic scale; each world has its own root note, so moving
+  // between worlds changes key. Soft attacks + a reverb send keep it calm and spacious.
+  const Snd = (() => {
+    const ROOTS = [196.00, 220.00, 174.61, 246.94, 130.81];   // Ember G3, Tide A3, Moss F3, Dusk B3, Ash C3
+    const PENT = [0,3,5,7,10];
+    let ctx=null, master=null, reverb=null, noiseBuf=null, ready=false, muted=false, root=196;
+    let drA,drB,drGain, beaconOsc,beaconGain, shimA,shimB,shimGain;
+    const now = ()=>ctx.currentTime;
+    function makeImpulse(dur,decay){ const len=ctx.sampleRate*dur, buf=ctx.createBuffer(2,len,ctx.sampleRate);
+      for(let ch=0;ch<2;ch++){ const d=buf.getChannelData(ch); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); } return buf; }
+    function ensure(){
+      if(ctx){ if(ctx.state==='suspended') ctx.resume(); return; }
+      try{ ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
+      master = ctx.createGain(); master.gain.value = muted?0:0.55; master.connect(ctx.destination);
+      reverb = ctx.createConvolver(); reverb.buffer = makeImpulse(2.4,2.6);
+      const rg = ctx.createGain(); rg.gain.value=0.55; reverb.connect(rg); rg.connect(master);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      { const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }
+      const df = ctx.createBiquadFilter(); df.type='lowpass'; df.frequency.value=440;
+      drGain = ctx.createGain(); drGain.gain.value=0; df.connect(drGain); drGain.connect(master);
+      drA=ctx.createOscillator(); drA.type='sine'; drB=ctx.createOscillator(); drB.type='sine';
+      drA.connect(df); drB.connect(df); drA.start(); drB.start();
+      const bf=ctx.createBiquadFilter(); bf.type='lowpass'; bf.frequency.value=1100;
+      beaconGain=ctx.createGain(); beaconGain.gain.value=0; beaconOsc=ctx.createOscillator(); beaconOsc.type='sine';
+      beaconOsc.connect(bf); bf.connect(beaconGain); beaconGain.connect(master); beaconGain.connect(reverb); beaconOsc.start();
+      const sf=ctx.createBiquadFilter(); sf.type='lowpass'; sf.frequency.value=3200;
+      shimGain=ctx.createGain(); shimGain.gain.value=0; shimA=ctx.createOscillator(); shimA.type='sine'; shimB=ctx.createOscillator(); shimB.type='sine';
+      shimA.connect(sf); shimB.connect(sf); sf.connect(shimGain); shimGain.connect(master); shimGain.connect(reverb);
+      shimA.start(); shimB.start();
+      ready=true; retune();
+    }
+    function retune(){ if(!ready) return; const t=now();
+      drA.frequency.setTargetAtTime(root/2,t,0.12); drB.frequency.setTargetAtTime(root/2*1.006,t,0.12);
+      beaconOsc.frequency.setTargetAtTime(root*1.5,t,0.12);
+      shimA.frequency.setTargetAtTime(root*3,t,0.12); shimB.frequency.setTargetAtTime(root*4.04,t,0.12); }
+    function tone(freq,g,dur,type,lp,rev){ if(!ready) return; const t=now();
+      const o=ctx.createOscillator(); o.type=type||'triangle'; o.frequency.value=freq;
+      const gg=ctx.createGain(); gg.gain.setValueAtTime(0.0001,t); gg.gain.exponentialRampToValueAtTime(g,t+0.008); gg.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      if(lp){ const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp; o.connect(f); f.connect(gg); } else o.connect(gg);
+      gg.connect(master); if(rev) gg.connect(reverb); o.start(t); o.stop(t+dur+0.03); }
+    const sfreq = step => { const s=((step%15)+15)%15; return root*Math.pow(2,(PENT[s%5]+12*Math.floor(s/5))/12); };
+    return {
+      resume(){ ensure(); },
+      isMuted(){ return muted; },
+      setMuted(m){ muted=m; if(master) master.gain.setTargetAtTime(m?0:0.55, now(), 0.03); },
+      setWorld(w){ root = ROOTS[w] ?? 196; retune(); },
+      trace(len,dir){ tone(sfreq(len), dir<0?0.035:0.055, dir<0?0.11:0.09, 'triangle', 1600, true); },
+      ember(){ [1,2.01,3.02].forEach((m,i)=> tone(sfreq(9)*m, 0.09/(i+1), 0.7, 'sine', 5000, true)); },
+      flame(){ if(!ready) return; const t=now();
+        const src=ctx.createBufferSource(); src.buffer=noiseBuf;
+        const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.setValueAtTime(260,t); f.frequency.exponentialRampToValueAtTime(1500,t+0.28); f.Q.value=0.7;
+        const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.2,t+0.03); g.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+        src.connect(f); f.connect(g); g.connect(master); g.connect(reverb); src.start(t); src.stop(t+0.55);
+        tone(root, 0.11, 0.5, 'sine', 800, true); },
+      exitOpen(){ [0,7,12].forEach((s,i)=> setTimeout(()=> tone(root*Math.pow(2,s/12)*2, 0.08, 0.9, 'sine', 4500, true), i*95)); },
+      sealed(){ tone(root*0.74, 0.09, 0.34, 'sine', 480, true); },
+      win(){ [0,3,7,12,15].forEach((s,i)=> setTimeout(()=> tone(root*Math.pow(2,s/12), 0.10, 1.1, 'triangle', 3200, true), i*115)); },
+      low(){ tone(root*0.5, 0.13, 0.6, 'sine', 300, true); },
+      tap(){ tone(sfreq(5), 0.045, 0.14, 'sine', 2200, true); },
+      ui(){ tone(root*2, 0.035, 0.08, 'sine', 3000, false); },
+      ambient(lightLvl, beaconCells, active){ if(!ready) return; const t=now();
+        drGain.gain.setTargetAtTime(active?0.09:0, t, 0.6);
+        const bp = Math.max(0, Math.min(1, 1 - beaconCells/14));
+        beaconGain.gain.setTargetAtTime(active? bp*bp*0.045 : 0, t, 0.25);
+        shimGain.gain.setTargetAtTime(active? Math.max(0,lightLvl-0.12)*0.028 : 0, t, 0.5); }
+    };
+  })();
 
   // ---- worlds (each a visual style) × 5 levels, easy to hard ----
   const WORLDS = [
@@ -397,6 +473,7 @@
     flameDensity = p.flameDensity;
     braid = p.braid; needFrac = p.needFrac;
     applyTheme(worldOf(cur));
+    Snd.setWorld(worldOf(cur));
     if (markEl) markEl.textContent = `${T.name} · ${levelOf(cur)+1}`;
     hideMap();
     resetGame(true);
@@ -405,33 +482,58 @@
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
   function buildMap(){
     const wrap = document.getElementById('mapWorlds');
-    wrap.innerHTML = '';
+    const W = Math.max(280, (mapEl.clientWidth||360) - 36);   // usable width
+    const GAP = 92, TOP = 54, AMP = W*0.30, MIDX = W/2;
+    const H = TOP + (TOTAL-1)*GAP + 70;
+    const px = i => MIDX + Math.sin(i*0.9)*AMP;                // winding x
+    const py = i => TOP + i*GAP;                               // descending y
+    const wcol = i => WORLDS[worldOf(i)].thread;
+
+    let bands = '', labels = '', path = '', lit = '', nodes = '';
+    // world regions (colored bands + a label at each world's start)
     WORLDS.forEach((w, wi) => {
-      const firstIdx = wi*LEVELS_PER_WORLD;
-      const unlocked = PREVIEW_UNLOCK || beaten >= firstIdx;
-      const worldEl = document.createElement('div');
-      worldEl.className = 'world';
-      worldEl.innerHTML =
-        `<div class="wname" style="color:${unlocked ? w.thread : 'var(--muted)'}">${unlocked ? w.name : '? ? ?'}</div>` +
-        `<div class="wtag">${unlocked ? w.tag : 'locked'}</div>`;
-      const nodes = document.createElement('div');
-      nodes.className = 'nodes';
-      for (let l=0; l<LEVELS_PER_WORLD; l++){
-        const i = firstIdx + l;
-        const done = i < beaten, locked = !PREVIEW_UNLOCK && i > beaten;
-        const node = document.createElement('div');
-        node.className = 'node' + (done?' done':'') + (locked?' locked':'') + (i===cur?' current':'');
-        if (done){ node.style.background = w.thread; node.innerHTML = CHECK; }
-        else { node.textContent = l+1; if (!locked){ node.style.color = w.thread; node.style.boxShadow = `inset 0 0 0 1.5px ${w.thread}`; } }
-        if (i===cur){ node.style.outline = `2px solid ${w.thread}`; node.style.outlineOffset = '2px'; }
-        if (!locked) node.addEventListener('click', ()=>loadLevel(i));
-        nodes.appendChild(node);
-      }
-      worldEl.appendChild(nodes);
-      wrap.appendChild(worldEl);
+      const a = wi*LEVELS_PER_WORLD, top = py(a)-GAP*0.5, bot = py(a+LEVELS_PER_WORLD-1)+GAP*0.5;
+      const seen = PREVIEW_UNLOCK || beaten >= a;
+      bands += `<div class="band" style="top:${top}px;height:${bot-top}px;background:linear-gradient(180deg, ${w.thread}14, ${w.thread}05);"></div>`;
+      labels += `<div class="wlabel" style="top:${top-2}px;">`
+        + `<div class="wn" style="color:${seen?w.thread:'var(--muted)'}">${seen?w.name:'? ? ?'}</div>`
+        + `<div class="wt">${seen?w.tag:'locked'}</div></div>`;
     });
+    // the winding path (dim full trail, then a bright "traveled" overlay up to current progress)
+    const pts = []; for (let i=0;i<TOTAL;i++) pts.push([px(i),py(i)]);
+    const d = pts.map((p,i)=> i? `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}` : `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    const reached = Math.min(TOTAL-1, Math.max(cur, beaten));
+    const dLit = pts.slice(0, reached+1).map((p,i)=> i? `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}` : `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    path = `<path d="${d}" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 14"/>`;
+    lit  = `<path d="${dLit}" fill="none" stroke="${wcol(reached)}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>`;
+
+    // nodes
+    for (let i=0;i<TOTAL;i++){
+      const done = i<beaten, locked = !PREVIEW_UNLOCK && i>beaten, isc = i===cur;
+      const col = wcol(i), lvl = levelOf(i)+1;
+      const cls = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'');
+      const style = `left:${px(i)}px;top:${py(i)}px;`
+        + (done ? `background:${col};` : (!locked ? `border-color:${col};color:${col};` : ''));
+      const inner = done ? CHECK : lvl;
+      const you = isc ? `<span class="you" style="color:${col}">you</span>` : '';
+      nodes += `<button data-i="${i}" ${locked?'disabled':''} class="${cls}" style="${style}">${inner}${you}</button>`;
+    }
+    wrap.innerHTML =
+      `<div class="trail" style="height:${H}px;">`
+      + bands
+      + `<svg class="path" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${path}${lit}</svg>`
+      + labels + nodes + `</div>`;
+    // fix classes + handlers (innerHTML template kept minimal above)
+    wrap.querySelectorAll('.pnode').forEach(el=>{
+      const i = +el.dataset.i;
+      const done = i<beaten, locked = !PREVIEW_UNLOCK && i>beaten, isc = i===cur;
+      el.className = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'');
+      if (!locked) el.addEventListener('click', ()=>loadLevel(i));
+    });
+    // scroll so the current level sits in view
+    requestAnimationFrame(()=>{ mapEl.scrollTop = Math.max(0, py(cur) - mapEl.clientHeight*0.5); });
   }
-  function openMap(){ winEl.classList.remove('show'); buildMap(); mapEl.classList.add('show'); }
+  function openMap(){ winEl.classList.remove('show'); buildMap(); mapEl.classList.add('show'); Snd.resume(); Snd.ui(); }
   function hideMap(){ mapEl.classList.remove('show'); }
 
   const worldW = () => cols*cellSize;
@@ -555,26 +657,31 @@
     if (next === prev){                            // retract — costs no light
       const popped = trail.pop();
       inTrail.delete(popped);
+      Snd.trace(trail.length, -1);
     } else {                                        // advance into new ground
       trail.push(next);
       inTrail.add(next);
+      Snd.trace(trail.length, 1);
       light = Math.max(0, light - DRAIN);
       if (embers.has(next)){                        // gather an ember (exit key — no light)
         embers.delete(next); emberGot++;
+        Snd.ember();
         blooms.push({ x:(cx(next)+0.5)*cellSize, y:(cy(next)+0.5)*cellSize, t0:performance.now(), key:true });
         if (emberGot === emberNeed){                // just enough — the exit opens
           showHint('The way is open — reach the exit');
+          Snd.exitOpen();
           blooms.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now(), big:true });
         }
       }
       if (flames.has(next)){                         // gather a flame (light fuel)
         flames.delete(next);
+        Snd.flame();
         light = Math.min(1, light + FLAME_GAIN);
         blooms.push({ x:(cx(next)+0.5)*cellSize, y:(cy(next)+0.5)*cellSize, t0:performance.now() });
         if (light > 0.55) warnedLow = false;
       }
       if (!warnedLow && light < CRIT){               // dramatic first warning
-        warnedLow = true; showHint('Your lantern is fading — find a flame');
+        warnedLow = true; showHint('Your lantern is fading — find a flame'); Snd.low();
       }
     }
     reveal();
@@ -583,6 +690,7 @@
       if (exitOpen()) doWin();
       else {                                        // the way is sealed until the quota is met
         pings.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now() });
+        Snd.sealed();
         showHint(`Gather ${emberNeed - emberGot} more ember${emberNeed-emberGot===1?'':'s'} to open the way`);
       }
     }
@@ -642,6 +750,7 @@
   function onDown(e){
     if (won) return;
     dragging = true; moved = false;
+    Snd.resume();
     downX = e.clientX; downY = e.clientY;
     const r = canvas.getBoundingClientRect();
     fingerSX = e.clientX - r.left; fingerSY = e.clientY - r.top;
@@ -668,6 +777,7 @@
     const path = bfsPath(trail[trail.length-1], target);
     if (path && path.length){
       walkQueue = path; walkAcc = 0;
+      Snd.tap();
       pings.push({ x:(cx(target)+0.5)*cellSize, y:(cy(target)+0.5)*cellSize, t0:performance.now() });
     }
   }
@@ -723,6 +833,7 @@
   function doWin(){
     if (won) return;
     won = true; dragging = false; fingerActive = null; walkQueue.length = 0;
+    Snd.win();
     beaten = Math.max(beaten, cur+1); saveProgress();
     elapsed = started ? (performance.now() - startTime) : 0;
     document.getElementById('wtime').firstChild.nodeValue = fmt(elapsed);
@@ -1196,11 +1307,21 @@
     updateCamera();
     draw(t);
     updateHud();
+    const hd = trail[trail.length-1];
+    Snd.ambient(light, Math.hypot(cx(hd)-cx(endCell), cy(hd)-cy(endCell)), !won);
     requestAnimationFrame(frame);
   }
 
   // ---- controls ----
   document.getElementById('reset').addEventListener('click', ()=>loadLevel(cur));         // fresh maze, same level
+  // sound toggle (persisted)
+  const elMute = document.getElementById('mute'), muteIcon = document.getElementById('muteIcon');
+  const speakerOn = '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/>';
+  const speakerOff = '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/>';
+  let soundMuted = false; try{ soundMuted = localStorage.getItem('thread_mute')==='1'; }catch(e){}
+  function applyMute(){ Snd.setMuted(soundMuted); muteIcon.innerHTML = soundMuted ? speakerOff : speakerOn; elMute.style.color = soundMuted ? 'var(--muted)' : ''; }
+  elMute.addEventListener('click', ()=>{ soundMuted=!soundMuted; try{ localStorage.setItem('thread_mute', soundMuted?'1':'0'); }catch(e){} Snd.resume(); applyMute(); });
+  applyMute();
   document.getElementById('next').addEventListener('click', ()=>loadLevel(cur+1 < TOTAL ? cur+1 : cur));
   document.getElementById('tomap').addEventListener('click', openMap);
   document.getElementById('mapClose').addEventListener('click', hideMap);
