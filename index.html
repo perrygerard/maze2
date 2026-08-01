@@ -246,6 +246,14 @@
   let pings = [];              // little rings acknowledging a tap
   let hintTimer = 0;           // transient message timer
 
+  // smooth drag: a continuous "tip" that follows the finger along the corridor,
+  // while the logical trail commits whole cells underneath it
+  let tipX = 0, tipY = 0;      // rendered tip, world coords (eased)
+  let tipCell = 0;             // the neighbour the tip is currently heading toward
+  let tipT = 0;                // finger's projected fraction along head->tipCell (target)
+  let fingerSX = 0, fingerSY = 0; // last finger position, canvas-relative screen px
+  const TIP_EASE = 0.4;        // how quickly the drawn tip catches the finger
+
   const idx = (c, r) => r * cols + c;
   const cx = i => i % cols;
   const cy = i => (i - (i % cols)) / cols;
@@ -314,6 +322,7 @@
     light = LIGHT_START;
     blooms = [];
     walkQueue.length = 0; pings = []; moved = false;
+    tipCell = startCell; tipT = 0;
     placeEmbers();
     reveal();
     started = false; won = false; elapsed = 0; startTime = 0;
@@ -323,6 +332,7 @@
     elHint.innerHTML = `Gather <b>${emberNeed}</b> ember${emberNeed===1?'':'s'}, then reach the light`;
     elHint.style.opacity = '1';
     layout();
+    tipX = (cx(startCell)+0.5)*cellSize; tipY = (cy(startCell)+0.5)*cellSize;
     // center camera on start immediately
     tCamX = camX = clampCam(cellSize*(cx(startCell)+0.5) - viewW/2, worldW()-viewW);
     tCamY = camY = clampCam(cellSize*(cy(startCell)+0.5) - viewH/2, worldH()-viewH);
@@ -571,16 +581,25 @@
     if (won) return;
     dragging = true; moved = false;
     downX = e.clientX; downY = e.clientY;
+    const r = canvas.getBoundingClientRect();
+    fingerSX = e.clientX - r.left; fingerSY = e.clientY - r.top;
     walkQueue.length = 0;                 // a new touch cancels any auto-walk in progress
+    const head = trail[trail.length-1];   // start the tip exactly at the head
+    tipCell = head; tipT = 0;
+    tipX = (cx(head)+0.5)*cellSize; tipY = (cy(head)+0.5)*cellSize;
   }
   function onMove(e){
     if (!dragging || won) return;
     if (!moved && Math.hypot(e.clientX-downX, e.clientY-downY) < DRAG_THRESH) return;
     moved = true;                         // past the threshold: this is a drag
     e.preventDefault();
-    stepToward(cellAt(e.clientX, e.clientY, true));
+    const r = canvas.getBoundingClientRect();
+    fingerSX = e.clientX - r.left; fingerSY = e.clientY - r.top;   // record; tracing happens per-frame
   }
   function onUp(e){
+    if (!won && moved){                   // drag ended mid-edge: round to the nearest cell
+      if (tipT >= 0.5) applyStep(tipCell);
+    }
     dragging = false; fingerActive = null;
     if (won || moved) return;             // a drag already handled it
     const target = cellAt(e.clientX, e.clientY, false);   // a tap: walk there along the corridor
@@ -590,6 +609,49 @@
       pings.push({ x:(cx(target)+0.5)*cellSize, y:(cy(target)+0.5)*cellSize, t0:performance.now() });
     }
   }
+
+  // ---- smooth corridor-tracking tip ----
+  const cellCenter = i => ({ x:(cx(i)+0.5)*cellSize, y:(cy(i)+0.5)*cellSize });
+  const fingerWorld = () => ({ x: fingerSX + camX, y: fingerSY - FINGER_LIFT*cellSize + camY });
+
+  // Which open direction the finger is pulling toward from cell h, and how far (0..1) along it.
+  function chooseTip(h, F){
+    const O = cellCenter(h);
+    const dx = F.x-O.x, dy = F.y-O.y, dlen = Math.hypot(dx,dy);
+    if (dlen < cellSize*0.06) return { cell:h, t:0 };
+    const prev = trail.length>1 ? trail[trail.length-2] : -1;
+    const cands = [];
+    for (const n of openNeighbors(h)) if (!inTrail.has(n)) cands.push(n); // advance into new ground
+    if (prev>=0) cands.push(prev);                                        // or retrace
+    if (!cands.length) return { cell:h, t:0 };
+    let best=-1, bestScore=-2, bestT=0;
+    for (const c of cands){
+      const C = cellCenter(c);
+      const ex = C.x-O.x, ey = C.y-O.y, el = Math.hypot(ex,ey)||1;
+      const align = (dx*ex+dy*ey)/(dlen*el);
+      const t = Math.max(0, Math.min(1, (dx*ex+dy*ey)/(el*el)));
+      const bias = (c===tipCell) ? 0.12 : 0;   // hysteresis: don't flicker between directions
+      if (align+bias > bestScore){ bestScore=align+bias; best=c; bestT=t; }
+    }
+    if (best<0 || bestScore < 0.12) return { cell:(best>=0?best:h), t:0 }; // finger pulling into a wall
+    return { cell:best, t:bestT };
+  }
+
+  // Per-frame: commit whole cells the finger has crossed, then set the tip's target.
+  function dragUpdate(){
+    const F = fingerWorld();
+    let head = trail[trail.length-1], guard = 0;
+    while (guard++ < 8 && !won){
+      const pk = chooseTip(head, F);
+      if (pk.t < 0.999) break;              // finger hasn't reached the next centre yet
+      applyStep(pk.cell);                   // crossed it — commit (light, embers, fog, win)
+      head = trail[trail.length-1];
+    }
+    if (won){ tipCell=head; tipT=0; return; }
+    const pk = chooseTip(head, F);
+    tipCell = pk.cell; tipT = pk.t;
+  }
+
 
   canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); onDown(e); });
   canvas.addEventListener('pointermove', onMove, {passive:false});
@@ -616,11 +678,11 @@
   // ---- camera follow (dead-zone + easing) ----
   function updateCamera(){
     const head = trail[trail.length-1];
-    const hx = (cx(head)+0.5)*cellSize, hy = (cy(head)+0.5)*cellSize;
+    const hx = tipX, hy = tipY;           // follow the smooth tip, not the snapping cell
     if (walkQueue.length > 0){
       // tap-walking: no finger involved, so keep the lantern centred as the maze glides past
-      tCamX = hx - viewW/2;
-      tCamY = hy - viewH/2;
+      tCamX = (cx(head)+0.5)*cellSize - viewW/2;
+      tCamY = (cy(head)+0.5)*cellSize - viewH/2;
     } else {
       // dragging (or idle): hold a still patch of world so the finger maps to a stable cell
       const dzX = viewW*0.24, dzY = viewH*0.22;
@@ -690,7 +752,8 @@
     drawBlooms();
 
     // the thread
-    if (trail.length > 1){
+    const tipOut = Math.hypot(tipX-(cx(trail[trail.length-1])+0.5)*cellSize, tipY-(cy(trail[trail.length-1])+0.5)*cellSize) > cellSize*0.04;
+    if (trail.length > 1 || tipOut){
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       // glow underlay
       ctx.strokeStyle = `rgba(${T.threadRGB},0.22)`;
@@ -704,29 +767,33 @@
       ctx.lineWidth = cellSize*0.2;
       strokeTrail();
     }
-    // head bead
-    const head = trail[trail.length-1];
-    const hx = (cx(head)+0.5)*cellSize - camX, hy = (cy(head)+0.5)*cellSize - camY;
-    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.17, 0, 7);
+    // head bead — now at the smoothly-eased tip, under the finger
+    const bx = tipX - camX, by = tipY - camY;
+    ctx.beginPath(); ctx.arc(bx, by, cellSize*0.17, 0, 7);
     ctx.fillStyle = getVar('--thread-core'); ctx.fill();
-    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.30, 0, 7);
+    ctx.beginPath(); ctx.arc(bx, by, cellSize*0.30, 0, 7);
     ctx.strokeStyle = `rgba(${T.coreRGB},0.35)`; ctx.lineWidth = 2; ctx.stroke();
-
-    // finger ghost ring (shows the lifted active point)
-    if (fingerActive && dragging){
-      const gx = fingerActive.x - camX, gy = fingerActive.y - camY;
-      ctx.beginPath(); ctx.arc(gx, gy, cellSize*0.34, 0, 7);
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.stroke();
-    }
   }
 
+  // build the thread's points: committed cell centres, plus the live tip
+  function threadPoints(){
+    const pts = [];
+    for (const i of trail) pts.push({ x:(cx(i)+0.5)*cellSize-camX, y:(cy(i)+0.5)*cellSize-camY });
+    const hx = (cx(trail[trail.length-1])+0.5)*cellSize-camX, hy = (cy(trail[trail.length-1])+0.5)*cellSize-camY;
+    const tx = tipX-camX, ty = tipY-camY;
+    if (Math.hypot(tx-hx, ty-hy) > cellSize*0.04) pts.push({ x:tx, y:ty });  // add tip if beyond the head
+    return pts;
+  }
   function strokeTrail(){
+    const pts = threadPoints();
+    if (pts.length < 2){ if(pts.length===1){ } return; }
     ctx.beginPath();
-    for (let k=0;k<trail.length;k++){
-      const i = trail[k];
-      const x=(cx(i)+0.5)*cellSize-camX, y=(cy(i)+0.5)*cellSize-camY;
-      k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i=1;i<pts.length-1;i++){                 // midpoint smoothing → flowing line, no hard corners
+      const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
     }
+    ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
     ctx.stroke();
   }
 
@@ -872,6 +939,13 @@
         applyStep(walkQueue.shift());
       }
     }
+    if (dragging && moved && !won) dragUpdate();
+    else { tipCell = trail[trail.length-1]; tipT = 0; }   // idle / tap-walk: tip rests at the head
+    // ease the drawn tip toward its target point on the head->tipCell edge
+    const head = trail[trail.length-1], O = cellCenter(head), C = cellCenter(tipCell);
+    const gx = O.x + (C.x-O.x)*tipT, gy = O.y + (C.y-O.y)*tipT;
+    tipX += (gx - tipX) * TIP_EASE;
+    tipY += (gy - tipY) * TIP_EASE;
     updateCamera();
     draw(t);
     updateHud();
