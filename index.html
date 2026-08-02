@@ -96,30 +96,68 @@
   .win .row{display:flex;gap:10px;}
 
   /* world map */
+  /* the map is an ocean the islands sit in — flat teal, matching the art direction */
   .sheet{position:absolute;inset:0;display:none;flex-direction:column;z-index:9;padding:20px 18px;
-    background:rgba(7,12,14,.97);backdrop-filter:blur(5px);overflow-y:auto;
+    background-color:#35a894;overflow-y:auto;
     padding-top:max(20px,env(safe-area-inset-top));}
   .sheet.show{display:flex;animation:fade .28s ease both;}
-  .sheet h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin:2px 2px 2px;}
-  .sheet .sub{color:var(--muted);font-size:12.5px;margin:0 2px 18px;max-width:280px;line-height:1.4;}
-  .sheetclose{position:absolute;top:16px;right:16px;z-index:3;}
+  .sheet h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin:2px 2px 2px;color:#0f3c35;}
+  .sheet .sub{color:#1a5f55;font-size:12.5px;margin:0 2px 18px;max-width:280px;line-height:1.4;}
+  .sheetclose{position:absolute;top:16px;right:16px;z-index:3;
+    background:rgba(255,255,255,.8);border-color:rgba(0,0,0,.14);color:#0f3c35;}
+  .sheetclose:hover{background:#fff;color:#0f3c35;border-color:rgba(0,0,0,.24);}
+  /* the shelves pulse in sequence, so the ripple travels outward from the shore */
+  .sea{opacity:var(--o0);}
+  .flow, .cloud{will-change:opacity,transform;}
+  @media (prefers-reduced-motion: no-preference){
+    .sea{animation:searipple 3.4s ease-in-out infinite;}
+    .flow{animation:flowpulse 2.4s ease-in-out infinite;}
+    .cloud{animation:clouddrift 24s ease-in-out infinite;}
+  }
+  @keyframes searipple{0%,100%{opacity:var(--o0)}50%{opacity:var(--o1)}}
+  @keyframes flowpulse{0%,100%{opacity:.34}50%{opacity:1}}
+  @keyframes clouddrift{0%,100%{transform:translateX(-9px)}50%{transform:translateX(9px)}}
   .trail{position:relative;margin:6px auto 30px;}
   .trail svg.path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-  .band{position:absolute;left:-18px;right:-18px;pointer-events:none;}
-  .wlabel{position:absolute;left:0;right:0;text-align:center;pointer-events:none;}
-  .wlabel .wn{font-family:"Fraunces",serif;font-weight:600;font-size:19px;line-height:1;}
-  .wlabel .wt{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
-  .pnode{position:absolute;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;
-    display:grid;place-items:center;cursor:pointer;font-weight:600;font-size:16px;
-    border:2px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--ink);
-    font-variant-numeric:tabular-nums;transition:transform .12s;z-index:2;}
+  .islandwrap{position:absolute;left:0;right:0;pointer-events:none;transition:filter .3s ease;}
+  .islandwrap.locked{filter:grayscale(.92) brightness(.72);}
+  .isle{display:block;overflow:visible;}
+  /* labels sit on the open water above each island, clear of the first level node */
+  .wlabel{position:absolute;left:2px;right:2px;text-align:left;pointer-events:none;
+    display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+  .wlabel .wn{font-family:"Fraunces",serif;font-weight:600;font-size:19px;line-height:1;color:#103a33;}
+  .wlabel .wt{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#1c6155;}
+  /* three distinct tiers: not-reached (quiet grey), completed (solid medal),
+     current (brightest, largest, pulsing — the "you are here" marker) */
+  .pnode{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;
+    display:grid;place-items:center;cursor:pointer;font-weight:600;font-size:13px;
+    font-variant-numeric:tabular-nums;transition:transform .12s;z-index:2;
+    color:#767f89;background:#c1c9d0;border:1.5px solid rgba(28,36,42,.3);
+    box-shadow:0 2px 4px -1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5);}
+  .pnode::after{content:"";position:absolute;left:50%;bottom:-5px;width:56%;height:5px;
+    transform:translateX(-50%);background:radial-gradient(ellipse, rgba(0,0,0,.35), transparent 72%);
+    border-radius:50%;z-index:-1;}
   .pnode:active{transform:translate(-50%,-50%) scale(.92);}
-  .pnode.locked{opacity:.32;cursor:default;}
-  .pnode.done{color:#12181c;border-color:transparent;}
-  .pnode.done svg{width:20px;height:20px;}
-  .pnode.current{animation:nodepulse 1.4s ease-in-out infinite;}
-  @keyframes nodepulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}50%{box-shadow:0 0 0 6px rgba(255,255,255,.12)}}
-  .pnode .you{position:absolute;top:-22px;font-family:"Fraunces",serif;font-size:11px;white-space:nowrap;}
+  .pnode.locked{cursor:default;}
+  .pnode.locked svg{width:13px;height:13px;}
+  .pnode.done{color:#4a2e08;background:#e0a53f;border-color:rgba(60,38,10,.4);
+    box-shadow:0 2px 5px -1px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -3px 5px -2px rgba(120,70,10,.4);}
+  .pnode.done svg{width:15px;height:15px;}
+  .pnode.current{width:36px;height:36px;color:#4a2e08;background:#ffd98a;
+    border-color:rgba(60,38,10,.35);z-index:3;
+    animation:nodepulse 1.4s ease-in-out infinite;}
+  @keyframes nodepulse{0%,100%{box-shadow:0 3px 7px -1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 0 rgba(255,235,190,0)}
+    50%{box-shadow:0 3px 7px -1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 5px rgba(255,235,190,.35)}}
+  .mk-cur{animation:mkpulse 1.4s ease-in-out infinite;}
+  @keyframes mkpulse{0%,100%{opacity:.30}50%{opacity:.68}}
+  /* where the marker is drawn into the island, the button is only a tap target */
+  .pnode.ghost{background:none;border:0;box-shadow:none;color:transparent;
+    width:40px;height:40px;animation:none;}
+  .pnode.ghost::after{display:none;}
+  .pnode.ghost .you{top:-52px;}
+  .pnode.ghost svg{display:none;}
+  .pnode .you{position:absolute;top:-17px;font-family:"Fraunces",serif;font-size:11px;white-space:nowrap;
+    color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.75);}
 </style>
 </head>
 <body>
@@ -186,7 +224,7 @@
   // Everything sits in a minor-pentatonic scale; each world has its own root note, so moving
   // between worlds changes key. Soft attacks + a reverb send keep it calm and spacious.
   const Snd = (() => {
-    const ROOTS = [196.00, 220.00, 174.61, 246.94, 130.81];   // Ember G3, Tide A3, Moss F3, Dusk B3, Ash C3
+    const ROOTS = [196.00, 220.00, 174.61, 246.94, 130.81];   // Ember G3, Tide A3, Moss F3, Gale B3, Veil C3
     const PENT = [0,3,5,7,10];
     let ctx=null, master=null, reverb=null, noiseBuf=null, ready=false, muted=false, root=196;
     let drA,drB,drGain, beaconOsc,beaconGain, shimA,shimB,shimGain;
@@ -256,16 +294,16 @@
     { name:'Ember', tag:'warm stone',    bg:'#0e171b', app:'#10191d', wall:'#33474f', thread:'#ffc06a', threadRGB:'255,192,106', core:'#fff0d2', coreRGB:'255,240,210', start:'#c9a06a', beacon:'#56e0c8', beaconRGB:'86,224,200',  ember:'255,206,122' },
     { name:'Tide',  tag:'deep water',    bg:'#0b1622', app:'#0c1826', wall:'#2b4a5e', thread:'#7fd0ff', threadRGB:'127,208,255', core:'#e8f6ff', coreRGB:'232,246,255', start:'#6f97b0', beacon:'#ffcf7a', beaconRGB:'255,207,122', ember:'160,220,255' },
     { name:'Moss',  tag:'forest floor',  bg:'#0f1a12', app:'#111d14', wall:'#33513c', thread:'#c8e08a', threadRGB:'200,224,138', core:'#f2f8dd', coreRGB:'242,248,221', start:'#8aa06a', beacon:'#ff9fb0', beaconRGB:'255,159,176', ember:'210,230,150' },
-    { name:'Dusk',  tag:'last light',    bg:'#161022', app:'#171226', wall:'#443a5e', thread:'#e6a0ff', threadRGB:'230,160,255', core:'#f7ecff', coreRGB:'247,236,255', start:'#a08ac0', beacon:'#7dffd0', beaconRGB:'125,255,208', ember:'220,170,255' },
-    { name:'Ash',   tag:'no colour left',bg:'#111315', app:'#141618', wall:'#3d4348', thread:'#f4f6f8', threadRGB:'244,246,248', core:'#ffffff', coreRGB:'255,255,255', start:'#9aa2a8', beacon:'#ffb45b', beaconRGB:'255,180,91',  ember:'220,226,230' },
+    { name:'Gale',  tag:'thin air',      bg:'#0c1626', app:'#0e1a2c', wall:'#4a6b96', thread:'#8fd4ff', threadRGB:'143,212,255', core:'#eaf7ff', coreRGB:'234,247,255', start:'#7fa8c8', beacon:'#ff8f5e', beaconRGB:'255,143,94',  ember:'170,215,255' },
+    { name:'Veil',  tag:'what remains',  bg:'#111315', app:'#141618', wall:'#3d4348', thread:'#f4f6f8', threadRGB:'244,246,248', core:'#ffffff', coreRGB:'255,255,255', start:'#9aa2a8', beacon:'#ffb45b', beaconRGB:'255,180,91',  ember:'220,226,230' },
   ];
   // per-world atmosphere: drifting particles + a floor texture, so each world feels like a place
   const WORLD_FX = [
     { part:{ type:'spark',  n:30, color:'255,190,120', size:[0.6,1.8], vy:-0.22, drift:0.18, twinkle:true  }, floor:'grain'    },
     { part:{ type:'bubble', n:24, color:'150,215,255', size:[1.2,3.4], vy:-0.42, drift:0.30, twinkle:false }, floor:'caustics' },
     { part:{ type:'spore',  n:28, color:'200,225,150', size:[0.9,2.4], vy: 0.07, drift:0.40, twinkle:false }, floor:'speckle'  },
-    { part:{ type:'star',   n:46, color:'224,196,255', size:[0.5,1.7], vy: 0.0,  drift:0.03, twinkle:true  }, floor:'none', haze:'40,26,74' },
-    { part:{ type:'ash',    n:34, color:'200,205,210', size:[0.9,2.2], vy: 0.55, drift:0.22, twinkle:false }, floor:'cracks'   },
+    { part:{ type:'spore',  n:40, color:'205,232,255', size:[0.6,2.0], vy:-0.10, drift:0.95, twinkle:false }, floor:'none', haze:'22,44,80' },
+    { part:{ type:'ash',    n:34, color:'214,210,228', size:[0.9,2.2], vy:-0.16, drift:0.30, twinkle:true  }, floor:'cracks'   },
   ];
   let curWorld = 0;
   const hash = (i,s)=>{ const x=Math.sin(i*127.1 + s*311.7)*43758.5453; return x-Math.floor(x); };
@@ -480,54 +518,423 @@
   }
 
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+  const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5V8a5 5 0 0 1 10 0v2.5"/><rect x="5.5" y="10.5" width="13" height="9.5" rx="2.4" fill="currentColor" stroke="none"/></svg>';
+  // ---- island art: isometric block terrain ----
+  // Every island is a grid of extruded blocks: a lit top face plus two shaded side
+  // faces, painted back to front so nearer columns cover the ones behind. Elevation
+  // comes from a height field, so the terracing is a property of the terrain rather
+  // than something drawn on top of it. All geometry, no illustration.
+  const SEA = { mid:'#4cc0ab', shallow:'#b3f2e2' };   // pale shallows over the deeper teal
+  const ISO_N = 12;          // grid is ISO_N × ISO_N cells
+  const ISO_FILL = 1.25;      // how much of the map's width one island spans
+  const ISO_MAXH = 6;        // tallest column any world reaches
+  const MARKER = ['plinth','plinth','plinth','plinth','plinth'];
+  const ISO_LO = -1, ISO_HI = ISO_N;      // land can reach a cell past the grid
+  const SEA_LO = -5, SEA_HI = ISO_N + 5;  // water runs well past the shore
+  // the sea as blocks: the same grid, stepping out from the shore and thinning as it
+  // goes, so depth reads as the water getting darker away from the island
+  const SEA_BANDS = [ {pad:0.35,o:.66}, {pad:0.85,o:.50}, {pad:1.45,o:.36},
+                      {pad:2.20,o:.24}, {pad:3.10,o:.15}, {pad:4.10,o:.08} ];
+  const shadeHex = (hex,f) => `rgb(${shadeRGB(hex,f).join(',')})`;
+  // each world's signature surface: the material and its highlight
+  const FEATCOL = [
+    { a:'#f0561f', b:'#ffa53f' },   // Ember   molten rock
+    { a:'#2f9fd0', b:'#86dcf2' },   // Tide    water
+    { a:'#5f9e46', b:'#93d26c' },   // Moss    overgrowth
+    { a:'#e4f0ff', b:'#ffffff' },   // Gale    wind
+    { a:'#9a92b4', b:'#eee9fa' },   // Veil    spirit
+  ];
+  function islePalette(w, wi){
+    const f = FEATCOL[wi] || FEATCOL[0];
+    if (wi === 0) return {                      // Ember: cool slate rock, hot lava
+      cliff:'#222c4c', steps:['#3b4a75','#4d5f93','#6072ac','#7488c2','#8a9dd4'],
+      volcano:true, featA:f.a, featB:f.b,
+    };
+    const s = k => shadeHex(w.wall, k);
+    return { cliff:s(-0.30), steps:[s(0.02),s(0.20),s(0.36),s(0.52),s(0.66)],
+             featA:f.a, featB:f.b };
+  }
+  // Each island: its own coastline harmonics, its own terrain profile, and the
+  // feature cells that give the world its character. A feature cell may carry a
+  // height (the flow/basin sets its own grade) or omit it and follow the ground.
+  function isleSpec(wi){
+    // a level shelf ringing the outer terrace; the five levels stand on it
+    const ring = [[1,4],[1,3],[2,3],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],
+                  [9,3],[9,4],[9,5],[9,6],[9,7],[9,8],[9,9],[8,9],[8,10],[7,10],
+                  [6,10],[5,10],[4,10],[3,10],[3,9],[2,9],[2,8],[2,7],[2,6],[2,5],[1,5]];
+    const S = [
+      // Ember (fire) — a volcano with lava running down to the shore on four sides
+      { shape:{ base:5.95, k1:0.42, p1:0.5, k2:0.22, p2:2.1 }, tiers:[2.4,4.2],
+        summit:[5,5], summitH:5, flow:true,
+        feat:[[6,5,4],[7,5,3],[8,5,2],[8,6,2],[8,7,1],[8,8,1],[9,6,1],   // east
+              [5,6,4],[5,7,3],[5,8,2],[4,8,2],[4,9,1],[5,9,1],[3,8,1],   // south
+              [4,5,4],[4,4,3],[3,4,3],[3,3,2],[2,3,1],                   // north-west
+              [5,4,4],[5,3,3],[6,3,2],[6,2,1],                           // north
+              [6,6,3],[7,6,2],[7,7,2],                                   // the delta
+              [9,8,1],[10,8,1],[10,9,1],                                 // east, to the rim
+              [6,9,1],[6,10,1],[7,10,1],[7,11,1]],                       // south, to the rim
+        falls:[[10,9],[7,11]] },                                         // and over it
+      // Tide (water) — a low island around a lagoon draining to the sea both ways
+      { shape:{ base:5.90, k1:0.46, p1:2.4, k2:0.20, p2:0.4 }, tiers:[2.0,4.4],
+        summit:null, mounds:[[3,3,4]], flow:true,
+        feat:[[5,5,1],[6,5,1],[5,6,1],[6,6,1],[4,5,1],[5,4,1],[6,4,1],[4,6,1],
+              [7,5,1],[5,7,1],[7,6,1],[6,7,1],[4,4,1],[7,7,1],[4,7,1],[7,4,1],
+              [8,7,1],[8,8,1],[9,8,1],[10,8,1],                     // eastern outflow
+              [3,6,1],[2,6,1],[2,7,1],                              // western outflow
+              [8,4,1],[3,8,1],                                      // tide pools
+              [10,9,1],                                             // eastern spill
+              [4,8,1],[4,9,1],[4,10,1],[4,11,1]],                   // southern spill
+        falls:[[10,9],[4,11]] },                                  // over the edge
+      // Moss (earth) — rolling mounds with overgrowth spreading across them
+      { shape:{ base:5.85, k1:0.44, p1:4.1, k2:0.24, p2:1.2 }, tiers:[2.2,4.2],
+        summit:null, mounds:[[4,4,4],[7,6,4],[5,8,3]],
+        feat:[[3,5],[4,5],[4,6],[5,6],[6,7],[7,7],[3,6],[6,4],
+              [7,5],[8,6],[5,3],[6,3],[2,6],[8,8],[4,8],[5,9],
+              [5,5],[6,5],[6,6],[7,6],[4,7],[3,7],[7,8],[6,9],[4,9],[8,5],
+              [3,4],[7,4]],
+        trees:[[3,4],[7,3],[8,7],[4,8],[6,9],[2,5],[9,5],[6,2],[3,8],[8,4],
+               [5,7],[7,9],[4,3],[9,6]] },
+      // Gale (air) — wind cut clean through the rock; cloud drifts over the gaps
+      { shape:{ base:5.80, k1:0.40, p1:1.3, k2:0.26, p2:3.4 }, tiers:[2.4,4.2],
+        summit:null, mounds:[[4,6,4],[7,5,4]],
+        holes:[[5,5],[5,6],[6,5]],                                  // blown straight through
+        feat:[[4,5],[3,5],[7,6],[8,6],[5,4],[6,7],[4,8],[7,3],[6,3],[3,7],
+              [6,6],[8,5],[4,4],[7,7]],                             // scoured ground
+        floatKind:'cloud',
+        floats:[[4,4,8,1.15],[7,5,9,0.85],[5,8,7,1.0],[8,8,8,0.7],[3,7,8,0.95],
+                [6,2,9,0.8],[2,5,7,0.75]] },
+      // Veil (spirit) — standing stones and spirit pools scattered the whole way
+      // across the island, with wisps rising off all of them
+      { shape:{ base:5.90, k1:0.45, p1:5.2, k2:0.22, p2:2.6 }, tiers:[2.6,4.4],
+        summit:null,
+        mounds:[[3,4,5,0],[4,3,4,0],[7,3,5,0],[8,4,4,0],            // the standing stones,
+                [8,7,5,0],[7,8,4,0],[4,8,5,0],[3,7,4,0],            // ringing the island
+                [5,5,4,0],[6,6,4,0]],
+        feat:[[4,4,1],[7,4,1],[4,7,1],[7,7,1],                      // spirit pools, spread out
+              [5,2,1],[9,6,1],[2,5,1],[6,9,1],
+              [5,4],[6,4],[4,5],[7,5],[4,6],[7,6],[5,7],[6,7],      // motes between them
+              [3,3],[8,3],[3,8],[8,8],[5,6],[6,5],[2,6],[9,5]],
+        floats:[[3,3,6],[8,3,6],[3,8,6],[8,8,6],[5,5,7],[6,6,7],
+                [2,6,5],[9,6,5],[7,2,5],[5,9,5],[4,10,5],[9,3,6]],
+        floatKind:'glow' },
+    ][wi] || {};
+    return Object.assign({ ring, feat:[], mounds:[], holes:[], floats:[], trees:[], falls:[] }, S);
+  }
+  const onRing = (spec,gx,gy) => spec.ring.some(c=>c[0]===gx && c[1]===gy);
+  const featOf = (spec,gx,gy) => spec.feat.find(c=>c[0]===gx && c[1]===gy);
+  const isoDist = (gx,gy) => Math.hypot(gx-(ISO_N-1)/2, gy-(ISO_N-1)/2);
+  // the coastline: a radius that varies on two low harmonics, so every world gets
+  // its own bays and headlands instead of all sharing one circular footprint
+  function inShape(spec, gx, gy, pad){
+    const dx = gx-(ISO_N-1)/2, dy = gy-(ISO_N-1)/2, d = Math.hypot(dx,dy);
+    const S = spec.shape, a = Math.atan2(dy,dx);
+    return d <= S.base + S.k1*Math.sin(a*2+S.p1) + S.k2*Math.sin(a*3+S.p2) + (pad||0);
+  }
+  function isleHeight(gx, gy, spec){
+    if (!inShape(spec,gx,gy)) return 0;                      // open water
+    if (spec.holes.some(c=>c[0]===gx && c[1]===gy)) return 0; // cut clean through
+    const f = featOf(spec,gx,gy);
+    if (f && f.length > 2) return f[2];                      // the feature sets its own grade
+    if (onRing(spec,gx,gy)) return 2;                        // the shelf stays level
+    const d = isoDist(gx,gy);
+    let h = d < spec.tiers[0] ? 3 : (d < spec.tiers[1] ? 2 : 1);
+    // a summit steps down ring by ring, so it reads as a cone rather than a spike
+    if (spec.summit){
+      const sd = Math.max(Math.abs(gx-spec.summit[0]), Math.abs(gy-spec.summit[1]));
+      if (sd <= 2) h = Math.max(h, spec.summitH - sd);
+    }
+    spec.mounds.forEach(m=>{                                 // radius 0 = a lone pillar
+      const md = Math.max(Math.abs(gx-m[0]), Math.abs(gy-m[1]));
+      if (md <= (m.length > 3 ? m[3] : 1)) h = Math.max(h, m[2] - md);
+    });
+    return h;
+  }
+  function isoMetrics(bw){
+    const TW = (bw*ISO_FILL)/ISO_N, TH = TW*0.60;
+    return { W:TW/2, H:TH/2, HZ:TH*0.9, SKIRT:TH*1.1 };
+  }
+  // the exact drawn extent, so an island's box hugs its art rather than guessing at it
+  function isoBounds(bw){
+    const m = isoMetrics(bw);
+    let top = 1e9, bot = -1e9;
+    WORLDS.forEach((w,wi)=>{
+      const spec = isleSpec(wi);
+      for (let gy=ISO_LO; gy<=ISO_HI; gy++) for (let gx=ISO_LO; gx<=ISO_HI; gx++){
+        if (!inShape(spec,gx,gy,0.9)) continue;
+        const h = isleHeight(gx,gy,spec), y = (gx+gy)*m.H - h*m.HZ;
+        top = Math.min(top, y - m.H);
+        bot = Math.max(bot, y + m.H + h*m.HZ + m.SKIRT);
+      }
+      spec.falls.forEach(([gx,gy])=>{
+        const h = isleHeight(gx,gy,spec), y = (gx+gy)*m.H - h*m.HZ;
+        bot = Math.max(bot, y + m.H + m.HZ*4.4 + m.H);
+      });
+      spec.floats.forEach(([gx,gy,h])=>{
+        const y = (gx+gy)*m.H - h*m.HZ;
+        top = Math.min(top, y - m.H);
+        bot = Math.max(bot, y + m.H + m.HZ*0.5);
+      });
+    });
+    return { top, h: bot-top };
+  }
+  function isoGeom(bw, bh){
+    const m = isoMetrics(bw), b = isoBounds(bw);
+    return { W:m.W, H:m.H, HZ:m.HZ, SKIRT:m.SKIRT, ox:bw/2, oy:(bh-b.h)/2 - b.top };
+  }
+  const isoTop = (g,gx,gy,h) => [ g.ox + (gx-gy)*g.W, g.oy + (gx+gy)*g.H - h*g.HZ ];
+  function islandArt(wi, w, bw, bh, states){
+    const P = islePalette(w, wi), spec = isleSpec(wi), g = isoGeom(bw, bh);
+    const face = (x,y,fill,k) => { const W_=g.W*(k||1), H_=g.H*(k||1);
+      return `<path d="M ${x.toFixed(1)} ${(y-H_).toFixed(1)} `
+        + `L ${(x+W_).toFixed(1)} ${y.toFixed(1)} L ${x.toFixed(1)} ${(y+H_).toFixed(1)} `
+        + `L ${(x-W_).toFixed(1)} ${y.toFixed(1)} Z" fill="${fill}"/>`; };
+    // a cloud: flat overlapping lobes, shaded underneath, in the same flat language
+    const puff = (x,y,k) => { const r = g.W*0.62*(k||1), lo = shadeHex('#dbe9f7',-0.02);
+      const lobe = (cx,cy,rx,ry,f) => `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" `
+        + `rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${f}"/>`;
+      return lobe(x, y+r*0.30, r*1.28, r*0.44, lo)
+        + lobe(x-r*0.78, y+r*0.10, r*0.62, r*0.46, lo)
+        + lobe(x+r*0.80, y+r*0.14, r*0.56, r*0.40, lo)
+        + lobe(x-r*0.62, y-r*0.06, r*0.58, r*0.44, '#fff')
+        + lobe(x+r*0.66, y-r*0.02, r*0.52, r*0.38, '#fff')
+        + lobe(x-r*0.06, y-r*0.30, r*0.86, r*0.58, '#fff')
+        + lobe(x+r*0.30, y-r*0.06, r*0.72, r*0.46, '#fff'); };
+    // a tree: a dark trunk with a canopy block sitting on top of it
+    const tree = (x,y) => { const th = g.HZ*1.05, k = 0.74, W_ = g.W*k, H_ = g.H*k;
+      const ch = g.HZ*0.8, cy = y - th - ch;
+      return `<rect x="${(x-g.W*0.10).toFixed(1)}" y="${(y-th).toFixed(1)}" `
+        + `width="${(g.W*0.20).toFixed(1)}" height="${(th+1).toFixed(1)}" fill="${shadeHex(P.featA,-0.62)}"/>`
+        + `<path d="M ${(x-W_).toFixed(1)} ${cy.toFixed(1)} L ${x.toFixed(1)} ${(cy+H_).toFixed(1)} `
+        + `L ${x.toFixed(1)} ${(cy+H_+ch).toFixed(1)} L ${(x-W_).toFixed(1)} ${(cy+ch).toFixed(1)} Z" fill="${shadeHex(P.featA,-0.22)}"/>`
+        + `<path d="M ${x.toFixed(1)} ${(cy+H_).toFixed(1)} L ${(x+W_).toFixed(1)} ${cy.toFixed(1)} `
+        + `L ${(x+W_).toFixed(1)} ${(cy+ch).toFixed(1)} L ${x.toFixed(1)} ${(cy+H_+ch).toFixed(1)} Z" fill="${shadeHex(P.featA,-0.42)}"/>`
+        + `<path d="M ${x.toFixed(1)} ${(cy-H_).toFixed(1)} L ${(x+W_).toFixed(1)} ${cy.toFixed(1)} `
+        + `L ${x.toFixed(1)} ${(cy+H_).toFixed(1)} L ${(x-W_).toFixed(1)} ${cy.toFixed(1)} Z" fill="${P.featB}"/>`; };
+    // a fall: the cell's two exposed faces run on down past the island's base,
+    // then break into spray where they land
+    const FALLD = g.HZ*4.4;
+    const fall = (x,y) => {
+      const dark = shadeHex(P.featA,-0.28);
+      return `<path d="M ${(x-g.W).toFixed(1)} ${y.toFixed(1)} L ${x.toFixed(1)} ${(y+g.H).toFixed(1)} `
+        + `L ${x.toFixed(1)} ${(y+g.H+FALLD).toFixed(1)} L ${(x-g.W).toFixed(1)} ${(y+FALLD).toFixed(1)} Z" fill="${P.featA}"/>`
+        + `<path d="M ${x.toFixed(1)} ${(y+g.H).toFixed(1)} L ${(x+g.W).toFixed(1)} ${y.toFixed(1)} `
+        + `L ${(x+g.W).toFixed(1)} ${(y+FALLD).toFixed(1)} L ${x.toFixed(1)} ${(y+g.H+FALLD).toFixed(1)} Z" fill="${dark}"/>`
+        + `<rect class="${spec.flow?'flow':''}" x="${(x-g.W*0.30).toFixed(1)}" y="${(y+g.H*0.4).toFixed(1)}" `
+        + `width="${(g.W*0.34).toFixed(1)}" height="${FALLD.toFixed(1)}" fill="${P.featB}" opacity=".55"/>`
+        + `<ellipse cx="${x.toFixed(1)}" cy="${(y+g.H+FALLD).toFixed(1)}" `
+        + `rx="${(g.W*0.95).toFixed(1)}" ry="${(g.H*0.72).toFixed(1)}" fill="${P.featB}" opacity=".85"/>`; };
+    // Ember's lava and Tide's water are alive; the delay grows with distance from
+    // the source, so the bright core reads as travelling along the flow
+    const flowWrap = (gx,gy,inner) => spec.flow
+      ? `<g class="flow" style="animation-delay:${(-isoDist(gx,gy)*0.26).toFixed(2)}s">${inner}</g>`
+      : inner;
+    let s = '';
+    // the sea shelves out from the shore on the same grid, so the coast stays blocky
+    const shelf = SEA_BANDS.map(()=> '');
+    for (let gy=SEA_LO; gy<=SEA_HI; gy++) for (let gx=SEA_LO; gx<=SEA_HI; gx++){
+      if (inShape(spec,gx,gy,0)) continue;                   // that's land
+      const bi = SEA_BANDS.findIndex(b => inShape(spec,gx,gy,b.pad));
+      if (bi < 0) continue;                                  // open ocean beyond the shelf
+      const [x,y] = isoTop(g,gx,gy,0);
+      shelf[bi] += face(x,y,SEA.shallow);
+    }
+    // inner shelves lead, outer ones lag, so the swell reads as running outward
+    const LAG = 0.24, N_B = SEA_BANDS.length;
+    SEA_BANDS.forEach((b,i)=>{
+      if (!shelf[i]) return;
+      s += `<g class="sea" style="--o0:${b.o};--o1:${Math.min(1,b.o*1.55).toFixed(3)};`
+        + `animation-delay:${(-(N_B-1-i)*LAG).toFixed(2)}s">${shelf[i]}</g>`;
+    });
+    const cells = [];
+    for (let gy=ISO_LO; gy<=ISO_HI; gy++) for (let gx=ISO_LO; gx<=ISO_HI; gx++){
+      const h = isleHeight(gx,gy,spec);
+      if (h) cells.push([gx,gy,h,0]);
+    }
+    // slabs torn loose and hanging above the island: same block, but only a thin
+    // lip of side face, so nothing connects them to the ground
+    spec.floats.forEach(f => cells.push([f[0],f[1],f[2],1,f[3]||1]));
+    spec.trees.forEach(([gx,gy]) => cells.push([gx,gy,isleHeight(gx,gy,spec),2,1]));
+    cells.sort((a,b)=> (a[0]+a[1]) - (b[0]+b[1]));           // painter's order
+    const sideL = shadeHex(P.cliff, 0.12), sideR = P.cliff;
+    cells.forEach(([gx,gy,h,fl,k])=>{
+      const [x,y] = isoTop(g,gx,gy,h);
+      if (fl === 2){ s += tree(x,y); return; }
+      if (fl === 1 && spec.floatKind === 'cloud'){
+        s += `<g class="cloud" style="animation-duration:${(19 + (gx*7+gy*5)%11 * 1.4).toFixed(1)}s;`
+          + `animation-delay:${(-((gx*5+gy*11)%14) * 1.3).toFixed(1)}s">${puff(x, y, k)}</g>`;
+        return;
+      }
+      if (!fl && spec.falls.some(c=>c[0]===gx && c[1]===gy)){
+        s += fall(x,y) + face(x,y,P.featA) + flowWrap(gx,gy,face(x,y,P.featB,0.55));
+        return;
+      }
+      const d = fl ? g.HZ*0.5 : h*g.HZ + g.SKIRT;
+      s += `<path d="M ${(x-g.W).toFixed(1)} ${y.toFixed(1)} L ${x.toFixed(1)} ${(y+g.H).toFixed(1)} `
+         + `L ${x.toFixed(1)} ${(y+g.H+d).toFixed(1)} L ${(x-g.W).toFixed(1)} ${(y+d).toFixed(1)} Z" fill="${sideL}"/>`
+         + `<path d="M ${x.toFixed(1)} ${(y+g.H).toFixed(1)} L ${(x+g.W).toFixed(1)} ${y.toFixed(1)} `
+         + `L ${(x+g.W).toFixed(1)} ${(y+d).toFixed(1)} L ${x.toFixed(1)} ${(y+g.H+d).toFixed(1)} Z" fill="${sideR}"/>`;
+      const isSummit = spec.summit && gx===spec.summit[0] && gy===spec.summit[1];
+      if (fl)                     s += face(x,y, spec.floatKind==='glow' ? P.featB : P.steps[P.steps.length-2]);
+      else if (isSummit && P.volcano) s += face(x,y,P.featB); // the crater, glowing
+      else if (featOf(spec,gx,gy)) s += face(x,y,P.featA) + flowWrap(gx,gy,face(x,y,P.featB,0.55));
+      else                        s += face(x,y,P.steps[Math.min(P.steps.length-1,h-1)]);
+    });
+    // ---- level markers, built from the same geometry as the terrain ----
+    const MK = { locked:'#9aa4ab', done:'#e0a53f', current:'#ffd98a', open:'#d8dee3' };
+    const style = MARKER[wi];
+    if (style !== 'disc') (states||[]).forEach((st,l)=>{
+      const [gx,gy] = nodeCell(wi,l);
+      const [x,y] = isoTop(g,gx,gy,isleHeight(gx,gy,spec));
+      const col = st.locked ? MK.locked : st.current ? MK.current : st.done ? MK.done : MK.open;
+      const ink = st.locked ? '#4d565c' : '#3a2f1c';
+      const label = st.done ? '\u2713' : String(st.n);
+      const TXT = 'font-family="Space Grotesk, sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="central"';
+      // a numeral either laid flat onto the isometric plane, or standing upright
+      const num = (nx,ny,size,fill,flat) => flat
+        ? `<g transform="translate(${nx.toFixed(1)},${ny.toFixed(1)}) matrix(0.72,0.43,-0.72,0.43,0,0)">`
+          + `<text ${TXT} font-size="${size.toFixed(1)}" fill="${fill}">${label}</text></g>`
+        : `<text x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" ${TXT} font-size="${size.toFixed(1)}" fill="${fill}">${label}</text>`;
+      if (st.current) s += `<ellipse class="mk-cur" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" `
+        + `rx="${(g.W*1.2).toFixed(1)}" ry="${(g.H*1.2).toFixed(1)}" fill="${MK.current}"/>`;
+      if (style === 'plinth'){
+        // a wide footing cut from the rock, with the marker column standing on it
+        const blk = (k, top, hgt, fT, fL, fR) => { const W_=g.W*k, H_=g.H*k;
+          return `<path d="M ${(x-W_).toFixed(1)} ${top.toFixed(1)} L ${x.toFixed(1)} ${(top+H_).toFixed(1)} `
+               + `L ${x.toFixed(1)} ${(top+H_+hgt).toFixed(1)} L ${(x-W_).toFixed(1)} ${(top+hgt).toFixed(1)} Z" fill="${fL}"/>`
+               + `<path d="M ${x.toFixed(1)} ${(top+H_).toFixed(1)} L ${(x+W_).toFixed(1)} ${top.toFixed(1)} `
+               + `L ${(x+W_).toFixed(1)} ${(top+hgt).toFixed(1)} L ${x.toFixed(1)} ${(top+H_+hgt).toFixed(1)} Z" fill="${fR}"/>`
+               + `<path d="M ${x.toFixed(1)} ${(top-H_).toFixed(1)} L ${(x+W_).toFixed(1)} ${top.toFixed(1)} `
+               + `L ${x.toFixed(1)} ${(top+H_).toFixed(1)} L ${(x-W_).toFixed(1)} ${top.toFixed(1)} Z" fill="${fT}"/>`; };
+        const foot = shadeHex(P.cliff, 0.18), ph = g.HZ*1.25, fh = g.HZ*0.34;
+        // the footing stays a block; the column on it is a cylinder — an ellipse cap,
+        // straight walls lit from the same side as the terrain, and a rounded underside
+        const rx = g.W*0.62, ry = g.H*0.62, topY = y-fh-ph, botY = y-fh;
+        // the shaft is banded into vertical strips shaded by the surface normal, so
+        // it curves away from the light instead of reading as two flat faces. The
+        // highlight sits left of centre, matching the lighting on the terrain blocks.
+        const NSTRIP = 18; let shaft = '';
+        for (let i=0; i<NSTRIP; i++){
+          const um = -1 + (2*i + 1)/NSTRIP;
+          const lit = Math.max(0, -0.6*um + 0.8*Math.sqrt(Math.max(0, 1 - um*um)));
+          shaft += `<rect x="${(x + (-1 + 2*i/NSTRIP)*rx).toFixed(2)}" y="${topY.toFixed(1)}" `
+            + `width="${((2/NSTRIP)*rx + 0.6).toFixed(2)}" height="${(ph + ry + 1).toFixed(2)}" `
+            + `fill="${shadeHex(col, -0.60 + 0.48*lit)}"/>`;
+        }
+        // the strips are cut to the cylinder's true silhouette, so the base curves
+        // away cleanly instead of ending on the strips' own stepped edges
+        const cid = `cyl${wi}-${l}`;
+        s += blk(0.98, y-fh, fh, shadeHex(foot,0.12), shadeHex(foot,-0.12), shadeHex(foot,-0.30))
+           + `<clipPath id="${cid}"><rect x="${(x-rx).toFixed(1)}" y="${topY.toFixed(1)}" `
+           + `width="${(rx*2).toFixed(1)}" height="${ph.toFixed(1)}"/>`
+           + `<ellipse cx="${x.toFixed(1)}" cy="${botY.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"/></clipPath>`
+           + `<ellipse cx="${x.toFixed(1)}" cy="${botY.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${shadeHex(col,-0.56)}"/>`
+           + `<g clip-path="url(#${cid})">${shaft}</g>`
+           + `<ellipse cx="${x.toFixed(1)}" cy="${topY.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${col}"/>`
+           + num(x, topY, g.W*0.66, ink, true);
+      } else if (style === 'banner'){          // staked into the ground, reads upright
+        const ph = g.HZ*1.7, ty = y - ph;
+        s += `<rect x="${(x-g.W*0.055).toFixed(1)}" y="${ty.toFixed(1)}" `
+           + `width="${(g.W*0.11).toFixed(1)}" height="${(ph+g.H*0.25).toFixed(1)}" fill="#39434d"/>`
+           + `<path d="M ${x.toFixed(1)} ${ty.toFixed(1)} L ${(x+g.W*1.06).toFixed(1)} ${(ty+g.H*0.64).toFixed(1)} `
+           + `L ${x.toFixed(1)} ${(ty+g.H*1.28).toFixed(1)} Z" fill="${col}"/>`
+           + num(x+g.W*0.36, ty+g.H*0.64, g.W*0.52, ink, false);
+      } else if (style === 'rune'){            // cut into the ground, nothing stands up
+        s += face(x,y,shadeHex(P.cliff,-0.18),0.92)
+           + face(x,y,shadeHex(P.cliff,0.12),0.66)
+           + num(x, y, g.W*0.62, col, true);
+      } else if (style === 'gem'){             // seated in a socket cut into the block
+        const r = g.W*0.54;
+        s += face(x,y,shadeHex(P.cliff,-0.22),0.80)
+           + `<path d="M ${x.toFixed(1)} ${(y-r*1.28).toFixed(1)} L ${(x+r*0.68).toFixed(1)} ${(y-r*0.30).toFixed(1)} `
+           + `L ${x.toFixed(1)} ${(y+r*0.74).toFixed(1)} L ${(x-r*0.68).toFixed(1)} ${(y-r*0.30).toFixed(1)} Z" fill="${col}"/>`
+           + `<path d="M ${x.toFixed(1)} ${(y-r*1.28).toFixed(1)} L ${x.toFixed(1)} ${(y+r*0.74).toFixed(1)} `
+           + `L ${(x-r*0.68).toFixed(1)} ${(y-r*0.30).toFixed(1)} Z" fill="${shadeHex(col,0.30)}"/>`
+           + num(x, y-r*0.24, g.W*0.46, ink, false);
+      }
+    });
+    return s;
+  }
+  // an open, softly-curved line through a list of points (quadratic through the
+  // midpoints), used for the walking route so bends read as curves, not corners
+  function smoothOpen(pts){
+    let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)} `;
+    for (let i=1;i<pts.length-1;i++){
+      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+      d += `Q ${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)} `;
+    }
+    const last = pts[pts.length-1];
+    return d + `L ${last[0].toFixed(1)} ${last[1].toFixed(1)}`;
+  }
+  // which grid cell each level stands on. Chosen to clear the lava branches
+  // (gx===3, gy===3 and the gx===gy diagonal) and to stay well apart on screen.
+  // positions around the ring, ordered back to front (by gx+gy) so the numbers read
+  // as a path across the island; each world starts from a different point on it
+  const NODE_IDX = [0,9,15,22,27];
+  function nodeCell(wi, lvl){
+    const ring = isleSpec(wi).ring;
+    return ring[(NODE_IDX[lvl] + wi*3) % ring.length];
+  }
   function buildMap(){
     const wrap = document.getElementById('mapWorlds');
     const W = Math.max(280, (mapEl.clientWidth||360) - 36);   // usable width
-    const GAP = 92, TOP = 54, AMP = W*0.30, MIDX = W/2;
-    const H = TOP + (TOTAL-1)*GAP + 70;
-    const px = i => MIDX + Math.sin(i*0.9)*AMP;                // winding x
-    const py = i => TOP + i*GAP;                               // descending y
-    const wcol = i => WORLDS[worldOf(i)].thread;
+    const TOP = 20, IGAP = 12, MIDX = W/2;
+    const IH = Math.round(isoBounds(W).h) + 16;               // island box height
+    const geom = WORLDS.map((w, wi) => ({ top: TOP + wi*(IH+IGAP), bh: IH }));
+    const H = geom[WORLDS.length-1].top + IH + 40;
+    // a level sits on the top face of its own grid cell, so it always meets the terrain
+    function nodeAt(i){
+      const wi = worldOf(i), g = geom[wi], ig = isoGeom(W, g.bh);
+      const [gx,gy] = nodeCell(wi, levelOf(i));
+      const [x,y] = isoTop(ig, gx, gy, isleHeight(gx, gy, isleSpec(wi)));
+      return [x, g.top + y];
+    }
+    const px = i => nodeAt(i)[0];
+    const py = i => nodeAt(i)[1];
 
+    const lvlStates = wi => {
+      const out = [];
+      for (let l=0; l<LEVELS_PER_WORLD; l++){
+        const i = wi*LEVELS_PER_WORLD + l;
+        out.push({ n:l+1, done:i<beaten, locked:!PREVIEW_UNLOCK && i>beaten, current:i===cur });
+      }
+      return out;
+    };
     let bands = '', labels = '', path = '', lit = '', nodes = '';
-    // world regions (colored bands + a label at each world's start)
     WORLDS.forEach((w, wi) => {
-      const a = wi*LEVELS_PER_WORLD, top = py(a)-GAP*0.5, bot = py(a+LEVELS_PER_WORLD-1)+GAP*0.5;
+      const a = wi*LEVELS_PER_WORLD, g = geom[wi];
       const seen = PREVIEW_UNLOCK || beaten >= a;
-      bands += `<div class="band" style="top:${top}px;height:${bot-top}px;background:linear-gradient(180deg, ${w.thread}14, ${w.thread}05);"></div>`;
-      labels += `<div class="wlabel" style="top:${top-2}px;">`
-        + `<div class="wn" style="color:${seen?w.thread:'var(--muted)'}">${seen?w.name:'? ? ?'}</div>`
+      bands += `<div class="islandwrap${seen?'':' locked'}" style="top:${g.top}px;height:${g.bh}px;">`
+        + `<svg class="isle" viewBox="0 0 ${W.toFixed(0)} ${g.bh}" width="100%" height="100%">${islandArt(wi,w,W,g.bh,lvlStates(wi))}</svg>`
+        + `</div>`;
+      labels += `<div class="wlabel" style="top:${g.top+4}px;">`
+        + `<div class="wn">${seen?w.name:'? ? ?'}</div>`
         + `<div class="wt">${seen?w.tag:'locked'}</div></div>`;
     });
-    // the winding path (dim full trail, then a bright "traveled" overlay up to current progress)
-    const pts = []; for (let i=0;i<TOTAL;i++) pts.push([px(i),py(i)]);
-    const d = pts.map((p,i)=> i? `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}` : `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-    const reached = Math.min(TOTAL-1, Math.max(cur, beaten));
-    const dLit = pts.slice(0, reached+1).map((p,i)=> i? `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}` : `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-    path = `<path d="${d}" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 14"/>`;
-    lit  = `<path d="${dLit}" fill="none" stroke="${wcol(reached)}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>`;
+    // the levels are linked by the road paved into each island, so nothing is drawn
+    // between islands — they stand on their own
 
-    // nodes
+    // nodes: grey padlock spheres until reached, then gold coins (numbered, or a check when done)
     for (let i=0;i<TOTAL;i++){
       const done = i<beaten, locked = !PREVIEW_UNLOCK && i>beaten, isc = i===cur;
-      const col = wcol(i), lvl = levelOf(i)+1;
-      const cls = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'');
-      const style = `left:${px(i)}px;top:${py(i)}px;`
-        + (done ? `background:${col};` : (!locked ? `border-color:${col};color:${col};` : ''));
-      const inner = done ? CHECK : lvl;
-      const you = isc ? `<span class="you" style="color:${col}">you</span>` : '';
+      const lvl = levelOf(i)+1;
+      const cls = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'')
+        + (MARKER[worldOf(i)] !== 'disc' ? ' ghost' : '');
+      const style = `left:${px(i)}px;top:${py(i)}px;`;
+      const inner = locked ? LOCK : (done ? CHECK : lvl);
+      const you = isc ? `<span class="you">you</span>` : '';
       nodes += `<button data-i="${i}" ${locked?'disabled':''} class="${cls}" style="${style}">${inner}${you}</button>`;
     }
     wrap.innerHTML =
       `<div class="trail" style="height:${H}px;">`
-      + bands
       + `<svg class="path" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${path}${lit}</svg>`
+      + bands
       + labels + nodes + `</div>`;
     // fix classes + handlers (innerHTML template kept minimal above)
     wrap.querySelectorAll('.pnode').forEach(el=>{
       const i = +el.dataset.i;
       const done = i<beaten, locked = !PREVIEW_UNLOCK && i>beaten, isc = i===cur;
-      el.className = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'');
+      el.className = 'pnode' + (done?' done':'') + (locked?' locked':'') + (isc?' current':'')
+        + (MARKER[worldOf(i)] !== 'disc' ? ' ghost' : '');
       if (!locked) el.addEventListener('click', ()=>loadLevel(i));
     });
     // scroll so the current level sits in view
@@ -909,8 +1316,8 @@
     { base:['#3a2620','#472c22','#2f211d','#523228'], acc:['#c85a2a','#e0742f'], mortar:'#20140f', feat:'glow'    }, // Ember  (warm stone)
     { base:['#1f4a52','#256069','#1a3f4a','#2d6b74'], acc:['#4fb0a8','#7fd8c8'], mortar:'#123037', feat:'wave', shades:['#153a44','#1c4c56','#256069','#3a8a92','#6fd2d2'] }, // Tide (rippling water)
     { base:['#4a4f4c','#565b57','#3f443f','#515651'], acc:['#4a6b3a','#5f7d44'], mortar:'#2a2e2b', feat:'moss'    }, // Moss   (mossy cobble)
-    { base:['#3a2b52','#463466','#2f2444','#4a3a6e'], acc:['#8a5fb0','#a877cc'], mortar:'#221936', feat:'sparkle' }, // Dusk   (purpur)
-    { base:['#42464a','#4c5054','#3a3e42','#54585c'], acc:['#666a6e','#5a5e62'], mortar:'#26292c', feat:'brick'   }, // Ash    (cracked brick)
+    { base:['#2f4266','#3a5480','#28384f','#42608f'], acc:['#8fc4ee','#b6dcf7'], mortar:'#1b2942', feat:'sparkle' }, // Gale   (wind-worn stone)
+    { base:['#42464a','#4c5054','#3a3e42','#54585c'], acc:['#666a6e','#5a5e62'], mortar:'#26292c', feat:'brick'   }, // Veil   (cracked brick)
   ];
   const tileCache = {};
   function genTile(w, seed, phase){
@@ -1046,7 +1453,7 @@
 
     drawParticles(t);                                         // drifting atmosphere in the lantern light
     const haze = WORLD_FX[curWorld].haze;
-    if (haze){                                                // soft world tint (e.g. Dusk twilight)
+    if (haze){                                                // soft world tint (e.g. Gale's cold sky)
       const hg = ctx.createRadialGradient(viewW/2, viewH*0.44, 0, viewW/2, viewH*0.44, viewH*0.7);
       hg.addColorStop(0, `rgba(${haze},0.16)`); hg.addColorStop(1, `rgba(${haze},0)`);
       ctx.fillStyle = hg; ctx.fillRect(0,0,viewW,viewH);
@@ -1308,7 +1715,8 @@
     draw(t);
     updateHud();
     const hd = trail[trail.length-1];
-    Snd.ambient(light, Math.hypot(cx(hd)-cx(endCell), cy(hd)-cy(endCell)), !won);
+    // the drone belongs to the maze — let it fade out while the world map is open
+    Snd.ambient(light, Math.hypot(cx(hd)-cx(endCell), cy(hd)-cy(endCell)), !won && !mapEl.classList.contains('show'));
     requestAnimationFrame(frame);
   }
 
