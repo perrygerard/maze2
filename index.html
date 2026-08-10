@@ -53,21 +53,21 @@
      side, rather than running flush to the panel's own edge — it reads as one more
      thing the panel is holding, not as part of the panel's own shape. */
   .topbar{
-    position:absolute;left:12px;right:12px;
-    bottom:max(12px,env(safe-area-inset-bottom));
-    display:flex;flex-direction:column;gap:9px;
-    padding:14px 16px 11px;
-    background:#faf8f3;border-radius:5px 5px 24px 24px;
+    position:absolute;left:0;right:0;bottom:0;
+    display:flex;flex-direction:column;gap:16px;
+    padding:4px 4px max(26px,calc(env(safe-area-inset-bottom) + 14px));
+    background:#faf8f3;border-radius:0px;
     box-shadow:0 16px 40px -10px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.10);
     z-index:5;
   }
-  .track{height:5px;border-radius:999px;background:#ffffff;overflow:hidden;flex:none;}
+  .track{height:5px;border-radius:999px;background:#faf8f3;overflow:hidden;flex:none;}
   .fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb055,#ffd98f);
     transition:width .5s cubic-bezier(.3,.8,.3,1);width:60%;}
   .track.low{box-shadow:0 0 0 1px rgba(255,90,60,.5);animation:lowpulse .9s ease-in-out infinite;}
   @keyframes lowpulse{0%,100%{opacity:1}50%{opacity:.4}}
-  /* the rest of the bar's furniture sits in its own row below the light strip */
-  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  /* the rest of the bar's furniture sits in its own row below the light strip — it carries
+     its own side padding now, since the strip above it sits much closer to the edge */
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;}
   .side{display:flex;align-items:center;gap:10px;flex:none;}
   /* LVL n — the small label and the big numeral, in the world's own ink */
   .lvl{display:flex;align-items:center;gap:5px;flex:none;color:var(--thread-ink,#4a3a1e);
@@ -98,7 +98,13 @@
   .iconbtn svg{width:19px;height:19px;stroke-width:2;}
 
   .stage{position:relative;flex:1;min-height:0;touch-action:none;}
-  canvas{display:block;width:100%;height:100%;touch-action:none;}
+  canvas{display:block;width:100%;height:100%;}
+  /* only the live gameplay canvas drives its own drag handling and needs the browser's
+     default touch gestures fully out of the way — the card-art canvases in the world
+     deck (canvas.scene) must NOT inherit this, or a touch starting on the artwork
+     (i.e. anywhere but the foot panel) stops the deck's own swipe-to-change-card from
+     working, which is exactly the bug this rule used to cause when it was blanket-`canvas`. */
+  #c{touch-action:none;}
 
   /* Instructions sit in the middle of the board, where the eye already is, rather than
      tucked along an edge. Centred text that wraps inside a max width instead of one
@@ -190,7 +196,7 @@
      parked below the bottom edge and the button is faded out, so the deck reads as
      three places rather than three menus. Both come back as the card lands. */
   .art{position:absolute;inset:0;}
-  .scene{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-x;}
   .cmid{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);z-index:2;
     display:flex;flex-direction:column;align-items:center;gap:9px;
     opacity:0;transition:opacity .26s ease .04s;pointer-events:none;}
