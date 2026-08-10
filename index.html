@@ -6,7 +6,7 @@
 <title>A MAZE THING</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
         :root{
     --page:#0a1114;
@@ -26,7 +26,7 @@
     background:
       radial-gradient(120% 80% at 50% -10%, #12211f 0%, var(--page) 60%);
     color:var(--ink);
-    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     display:flex;align-items:center;justify-content:center;
     min-height:100dvh;padding:24px;overflow:hidden;
   }
@@ -44,39 +44,70 @@
   }
 
   .device.menu .topbar{display:none;}
+  /* The status bar sits at the foot of the board in the same white rounded panel the
+     world-select cards use, so the two screens share one piece of furniture instead of
+     each having their own. It keeps clear of the device edges the same way the card
+     foot does, and carries the safe-area inset on its margin rather than its padding —
+     on a notched phone that lifts the whole panel instead of stretching it taller.
+     The light meter sits inset inside that panel, with its own breathing room on every
+     side, rather than running flush to the panel's own edge — it reads as one more
+     thing the panel is holding, not as part of the panel's own shape. */
   .topbar{
-    display:flex;align-items:center;gap:10px;
-    padding:14px 16px 10px;padding-top:max(14px,env(safe-area-inset-top));
+    position:absolute;left:12px;right:12px;
+    bottom:max(12px,env(safe-area-inset-bottom));
+    display:flex;flex-direction:column;gap:9px;
+    padding:14px 16px 11px;
+    background:#faf8f3;border-radius:5px 5px 24px 24px;
+    box-shadow:0 16px 40px -10px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.10);
     z-index:5;
   }
-  .mark{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:20px;letter-spacing:.2px;flex:none;
-    cursor:pointer;user-select:none;white-space:nowrap;}
-  /* light gauge + figures live up here now, off the board */
-  .gauge{display:flex;align-items:center;gap:8px;flex:1;min-width:46px;max-width:210px;}
-  .lantern{width:15px;height:15px;color:var(--thread);flex:none;}
-  .track{flex:1;height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
+  .track{height:5px;border-radius:999px;background:#ffffff;overflow:hidden;flex:none;}
   .fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb055,#ffd98f);
-    box-shadow:0 0 10px rgba(255,192,106,.6);transition:width .5s cubic-bezier(.3,.8,.3,1);width:60%;}
-  .track.low{box-shadow:0 0 0 1px rgba(255,90,60,.5), 0 0 14px rgba(255,90,60,.55);animation:lowpulse .9s ease-in-out infinite;}
-  .lantern.low{color:#ff6a4a;animation:lowpulse .9s ease-in-out infinite;}
+    transition:width .5s cubic-bezier(.3,.8,.3,1);width:60%;}
+  .track.low{box-shadow:0 0 0 1px rgba(255,90,60,.5);animation:lowpulse .9s ease-in-out infinite;}
   @keyframes lowpulse{0%,100%{opacity:1}50%{opacity:.4}}
-  .fig{font-size:12.5px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:5px;
-    font-variant-numeric:tabular-nums;flex:none;}
-  .fig .ico{width:13px;height:13px;color:var(--muted);opacity:.85;}
-  .fig.ember i{width:7px;height:7px;border-radius:50%;background:var(--thread);
-    box-shadow:0 0 6px rgba(255,192,106,.85);display:inline-block;}
-  .iconbtn{border:1px solid var(--line);background:var(--app-2);color:var(--muted);
-    width:34px;height:34px;border-radius:10px;cursor:pointer;display:grid;place-items:center;transition:.18s;flex:none;}
-  .iconbtn:hover{color:var(--ink);border-color:#2b3e45;}
-  .iconbtn svg{width:16px;height:16px;}
+  /* the rest of the bar's furniture sits in its own row below the light strip */
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .side{display:flex;align-items:center;gap:10px;flex:none;}
+  /* LVL n — the small label and the big numeral, in the world's own ink */
+  .lvl{display:flex;align-items:center;gap:5px;flex:none;color:var(--thread-ink,#4a3a1e);
+    user-select:none;}
+  .lvl span{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:10px;font-weight:700;letter-spacing:.10em;text-transform:uppercase;opacity:.75;}
+  .mark{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-weight:700;font-size:21px;line-height:1;font-variant-numeric:tabular-nums;}
+
+  /* the goal and the clock read as plain figures on the panel now — no chip behind
+     either one, just the numbers and the icon that says what they mean */
+  .figs{display:flex;align-items:center;gap:18px;}
+  .fig{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;font-weight:700;color:var(--thread-ink,#4a3a1e);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  /* the goal icon mirrors whatever you're actually collecting in that world — a little
+     vane for the garden, a warm ember glow everywhere else — instead of a plain dot.
+     Sized up so it reads as its own little illustration, not a bullet point. */
+  .goalIcon{width:24px;height:24px;flex:none;display:inline-flex;transition:filter .25s ease;}
+  .goalIcon svg{width:100%;height:100%;display:block;}
+  .goalIcon.lit{filter:saturate(1.3) brightness(1.1) drop-shadow(0 0 2px rgba(0,0,0,.2));}
+  /* bare glyphs, no chip behind them — the bar is already a panel, a button inside a
+     panel is one box too many */
+  .iconbtn{border:0;background:none;color:#57534a;padding:0;
+    width:26px;height:26px;cursor:pointer;display:grid;place-items:center;transition:color .18s;flex:none;}
+  .iconbtn:hover{color:#22221c;}
+  .iconbtn svg{width:19px;height:19px;stroke-width:2;}
 
   .stage{position:relative;flex:1;min-height:0;touch-action:none;}
   canvas{display:block;width:100%;height:100%;touch-action:none;}
 
-  .hint{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+  /* Instructions sit in the middle of the board, where the eye already is, rather than
+     tucked along an edge. Centred text that wraps inside a max width instead of one
+     nowrap line, so a longer hint stays on screen on a narrow phone. */
+  .hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     background:rgba(10,17,20,.62);backdrop-filter:blur(6px);border:1px solid var(--line);
-    color:var(--ink);font-size:13px;padding:9px 15px;border-radius:999px;
-    pointer-events:none;transition:opacity .5s;white-space:nowrap;}
+    color:var(--ink);font-size:13px;line-height:1.45;padding:10px 16px;border-radius:18px;
+    max-width:min(82%,300px);text-align:center;text-wrap:balance;
+    pointer-events:none;transition:opacity .5s;}
   .hint b{color:var(--thread);font-weight:500;}
 
   /* Win */
@@ -85,11 +116,11 @@
     backdrop-filter:blur(3px);z-index:8;text-align:center;padding:24px;}
   .win.show{display:flex;animation:fade .5s ease both;}
   @keyframes fade{from{opacity:0}to{opacity:1}}
-  .win h2{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:30px;margin:0;}
+  .win h2{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:30px;margin:0;}
   .win p{color:var(--muted);margin:2px 0 18px;font-size:14px;}
   .win .figures{display:flex;gap:26px;margin-bottom:22px;}
-  .win .figures div{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:26px;}
-  .win .figures span{display:block;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:10px;letter-spacing:.16em;
+  .win .figures div{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:26px;}
+  .win .figures span{display:block;font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:10px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--muted);margin-top:2px;}
   .btn{border:0;background:var(--thread);color:#241704;font:inherit;font-weight:600;font-size:15px;
     padding:12px 22px;border-radius:14px;cursor:pointer;}
@@ -165,11 +196,17 @@
     opacity:0;transition:opacity .26s ease .04s;pointer-events:none;}
   .card.active .cmid{opacity:1;pointer-events:auto;}
 
-  /* the foot: name, then levels. Identical on every card, and only on the active one. */
-  .cfoot{position:absolute;left:0;right:0;bottom:0;z-index:3;
-    background:#faf8f3;padding:15px 14px 14px;
+  /* The foot: name, then levels. Identical on every card, and only on the active one.
+     It floats clear of the frame rather than sitting flush in the bottom of it, so it
+     reads as a panel laid on the art instead of a band welded to the card. --fi is the
+     gap it keeps on all three sides; the parked position has to clear that gap too, or
+     a sliver of its top edge would still show above the frame's bottom. */
+  .cfoot{--fi:12px;
+    position:absolute;left:var(--fi);right:var(--fi);bottom:var(--fi);z-index:3;
+    background:#faf8f3;padding:15px 16px 14px;border-radius:24px;
+    box-shadow:0 8px 22px -8px rgba(16,12,6,.38), 0 1px 3px rgba(16,12,6,.16);
     display:flex;flex-direction:column;align-items:stretch;gap:11px;
-    transform:translateY(100%);
+    transform:translateY(calc(100% + var(--fi)));
     transition:transform .40s cubic-bezier(.2,.85,.28,1);}
   .card.active .cfoot{transform:translateY(0);}
   @media (prefers-reduced-motion: reduce){
@@ -184,7 +221,7 @@
      again. It is one system now: the same white pill, the same type, the same spacing,
      on every card. The art behind it does the work of telling the worlds apart, which
      is the only thing that actually needs to differ. */
-  .mat{position:relative;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  .mat{position:relative;font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     background:#f7f5ef;color:#22221c;border-radius:999px;}
 
   /* PLAY: the one thing on the card you are meant to hit. Kept white on every world so
@@ -233,22 +270,6 @@
 </head>
 <body>
   <div class="device">
-    <div class="topbar">
-      <div class="mark">Thread</div>
-      <div class="gauge">
-        <svg class="lantern" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3 4 4.2 4 8a4 4 0 0 1-8 0c0-1.6.6-2.6 1.2-3.2.2 1.1 1 1.7 1.6 1.7C9.6 7 11 4 12 2z"/></svg>
-        <div class="track"><div class="fill" id="lightFill"></div></div>
-      </div>
-      <span class="fig ember"><i></i><span id="embers">0/0</span></span>
-      <span class="fig"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg><span id="time">0:00</span></span>
-      <button class="iconbtn" id="mute" title="Sound" aria-label="Sound">
-        <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
-      </button>
-      <button class="iconbtn" id="reset" title="New maze" aria-label="New maze">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-      </button>
-    </div>
-
     <div class="stage" id="stage">
       <canvas id="c"></canvas>
       <div class="hint" id="hint">Drag or tap through the dark. Gather the <b>light</b></div>
@@ -266,6 +287,32 @@
         </div>
       </div>
     </div>
+
+    <div class="topbar">
+      <!-- the light sits inset inside the panel, above the row that shows what it buys -->
+      <div class="track"><div class="fill" id="lightFill"></div></div>
+      <div class="bar">
+        <div class="side">
+          <button class="iconbtn" id="back" title="Levels" aria-label="Back to levels">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4"/><path d="M10 6l-6 6 6 6"/></svg>
+          </button>
+          <div class="lvl"><span>LVL</span><b class="mark">1</b></div>
+        </div>
+        <div class="figs">
+          <span class="fig ember"><span id="embers">0/0</span><span class="goalIcon" id="goalIcon"></span></span>
+          <span class="fig time"><span id="time">0:00</span></span>
+        </div>
+        <div class="side">
+          <button class="iconbtn" id="mute" title="Sound" aria-label="Sound">
+            <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
+          </button>
+          <button class="iconbtn" id="reset" title="New maze" aria-label="New maze">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
       <div class="sheet" id="map">
         <canvas class="mapbg" id="mapBg" aria-hidden="true"></canvas>
         <div class="deck" id="mapDeck"></div>
@@ -282,10 +329,10 @@
   const elEmbers = document.getElementById('embers');
   const elLightFill = document.getElementById('lightFill');
   const elTrack = elLightFill.parentElement;
-  const elLantern = document.querySelector('.lantern');
   const elHint = document.getElementById('hint');
   const winEl = document.getElementById('win');
   const markEl = document.querySelector('.mark');
+  const elGoalIcon = document.getElementById('goalIcon');
   const mapEl = document.getElementById('map');
 
   // ---- sound: fully synthesized (Web Audio), so the game stays one self-contained file ----
@@ -374,15 +421,21 @@
     { name:'Veil',  tag:'what remains',  bg:'#111315', app:'#141618', wall:'#3d4348', thread:'#f4f6f8', threadRGB:'244,246,248', core:'#ffffff', coreRGB:'255,255,255', start:'#9aa2a8', beacon:'#ffb45b', beaconRGB:'255,180,91',  ember:'220,226,230' },
     { name:'Card',  tag:'cut and folded', bg:'#b99a63', app:'#241d14', wall:'#8a5f2c', thread:'#c94f36', threadRGB:'201,79,54',   core:'#e08068', coreRGB:'224,128,104', start:'#a8763c', beacon:'#dfae3c', beaconRGB:'223,174,60',  ember:'240,226,194' },
     { name:'Bloom', tag:'clipped and quiet', bg:'#9ed163', app:'#1d4a24', wall:'#2c7038', thread:'#f0e2bc', threadRGB:'240,226,188', core:'#fffdf2', coreRGB:'255,253,242', start:'#c8b78a', beacon:'#ff9ec4', beaconRGB:'255,158,196', ember:'250,240,200' },
+    { name:'Petal', tag:'new growth',     bg:'#b9e07a', app:'#2f5a26', wall:'#2e5f28', thread:'#ff8fc0', threadRGB:'255,143,192', core:'#fffdf2', coreRGB:'255,253,242', start:'#cbdba0', beacon:'#ff8fc0', beaconRGB:'255,143,192', ember:'255,220,235' },
+    { name:'Amber', tag:'turning leaves', bg:'#c99a45', app:'#3a2410', wall:'#4a2410', thread:'#e8a33d', threadRGB:'232,163,61',  core:'#fff3df', coreRGB:'255,243,223', start:'#d9b978', beacon:'#e8934a', beaconRGB:'232,147,74', ember:'230,150,80' },
+    { name:'Frost', tag:'first snow',     bg:'#eef4f2', app:'#16323a', wall:'#12261c', thread:'#8fd6e8', threadRGB:'143,214,232', core:'#ffffff', coreRGB:'255,255,255', start:'#cfe4ea', beacon:'#7fd6e8', beaconRGB:'127,214,232', ember:'210,235,240' },
+    { name:'Husk',  tag:'gone to seed',   bg:'#a49986', app:'#241d14', wall:'#241b12', thread:'#8f8670', threadRGB:'143,134,112', core:'#d8d2c2', coreRGB:'216,210,194', start:'#b3a98f', beacon:'#8a7d5c', beaconRGB:'138,125,92', ember:'150,138,110' },
   ];
-  const LOOK = { EMBER:0, TIDE:1, MOSS:2, GALE:3, VEIL:4, CARD:5, BLOOM:6 };
+  const LOOK = { EMBER:0, TIDE:1, MOSS:2, GALE:3, VEIL:4, CARD:5, BLOOM:6, SPRING:7, FALL:8, WINTER:9, DEAD:10 };
   // `levels` names the look each of the five levels wears; `art` is the island the
   // menu card shows for the world as a whole.
   const WORLDS = [
     { skin:'iso',   name:'Mining for Light', tag:'the light you carry',
       art:LOOK.EMBER, levels:[LOOK.EMBER, LOOK.TIDE, LOOK.MOSS, LOOK.GALE, LOOK.VEIL] },
     { skin:'garden', name:'Over the Hedge',  tag:'a clipped garden, in paper',
-      art:LOOK.MOSS,  levels:[LOOK.BLOOM, LOOK.BLOOM, LOOK.BLOOM, LOOK.BLOOM, LOOK.BLOOM] },
+      // the garden ages as you go deeper: spring, the current summer look, fall, winter,
+      // then a fifth level with nothing left in bloom at all
+      art:LOOK.MOSS,  levels:[LOOK.SPRING, LOOK.BLOOM, LOOK.FALL, LOOK.WINTER, LOOK.DEAD] },
     { skin:'card',  name:'Cut it Out',   tag:'folded flat',
       art:LOOK.VEIL,  levels:[LOOK.CARD, LOOK.CARD, LOOK.CARD, LOOK.CARD, LOOK.CARD] },
   ];
@@ -395,6 +448,10 @@
     { part:{ type:'ash',    n:34, color:'214,210,228', size:[0.9,2.2], vy:-0.16, drift:0.30, twinkle:true  }, floor:'cracks'   },
     { part:{ type:'spore',  n:18, color:'236,214,170', size:[0.8,2.0], vy: 0.05, drift:0.22, twinkle:false }, floor:'speckle'  },  // Card: paper dust
     { part:{ type:'spore',  n:22, color:'255,246,190', size:[0.9,2.4], vy:-0.06, drift:0.34, twinkle:true  }, floor:'speckle'  },  // Bloom: pollen
+    { part:{ type:'spore',  n:26, color:'255,190,210', size:[1.3,2.6], vy: 0.10, drift:0.9,  twinkle:true  }, floor:'speckle'  },  // Petal (spring): blossom
+    { part:{ type:'spore',  n:24, color:'204,96,44',   size:[1.5,2.6], vy: 0.14, drift:1.4,  twinkle:false }, floor:'speckle'  },  // Amber (fall): falling leaves
+    { part:{ type:'spore',  n:30, color:'255,255,255', size:[1.0,2.2], vy: 0.22, drift:0.5,  twinkle:true  }, floor:'speckle'  },  // Frost (winter): snow
+    { part:{ type:'spore',  n:10, color:'150,140,118', size:[0.7,1.5], vy: 0.04, drift:0.4,  twinkle:false }, floor:'speckle'  },  // Husk (dead): dust
   ];
   let curWorld = 0, curLook = 0;
   const hash = (i,s)=>{ const x=Math.sin(i*127.1 + s*311.7)*43758.5453; return x-Math.floor(x); };
@@ -680,14 +737,42 @@
     rs.setProperty('--thread', T.thread);
     rs.setProperty('--thread-core', T.core);
     rs.setProperty('--beacon', T.beacon);
+    // The status bar is a light panel now, and the world's thread colour is pitched for
+    // a dark one — it would wash out on white. This is the same hue taken down far
+    // enough to read as ink, so the bar still changes with the world without going faint.
+    rs.setProperty('--thread-ink', `rgb(${toRGB(T.thread).map(c => Math.round(c*0.42)).join(',')})`);
     varCache = {};                                   // bust cached CSS-var colours
     if (elLightFill){
       elLightFill.style.background = `linear-gradient(90deg, ${T.thread}, ${T.core})`;
       elLightFill.style.boxShadow = `0 0 10px rgba(${T.threadRGB},.6)`;
     }
-    if (markEl) markEl.style.color = T.thread;
     wallCoreRGB = shadeRGB(T.wall, 0.32); wallHiRGB = shadeRGB(T.wall, 0.62); bgRGB = toRGB(T.bg); // solid wall tones
+    // the garden's hedge/cloud/path palette turns over with the level's season — every
+    // other skin ignores this, since only garden reads from GARDEN at all
+    if (W_.skin === 'garden') GARDEN = GARDEN_PALETTES[curLook] || GARDEN_PALETTES[LOOK.BLOOM];
     seedParticles();
+    renderGoalIcon();
+  }
+
+  // The bar's goal icon is a tiny portrait of whatever's actually scattered through the
+  // maze: the garden's little pinwheel vane (same alternating petals as the in-world
+  // art), or the warm ember glow everywhere else. Rebuilt per-theme rather than themed
+  // with a filter, since the vane and the ember don't share a silhouette.
+  function renderGoalIcon(){
+    if (!elGoalIcon) return;
+    if (T.skin === 'garden'){
+      const A = T.beacon, B = T.core;
+      const pts = [[24,16],[20,22.93],[12,22.93],[8,16],[12,9.07],[20,9.07]];
+      const petals = pts.map((p,i) =>
+        `<circle cx="${p[0]}" cy="${p[1]}" r="6.4" fill="${i%2?B:A}" stroke="#2c2016" stroke-opacity=".75" stroke-width="1.1"/>`
+      ).join('');
+      elGoalIcon.innerHTML = `<svg viewBox="0 0 32 32"><g>${petals}</g>` +
+        `<circle cx="16" cy="16" r="5.2" fill="${A}" stroke="#2c2016" stroke-opacity=".75" stroke-width="1.3"/></svg>`;
+    } else {
+      elGoalIcon.innerHTML = `<svg viewBox="0 0 32 32">` +
+        `<circle cx="16" cy="16" r="14" fill="rgba(${T.ember},.5)"/>` +
+        `<circle cx="16" cy="16" r="7" fill="${T.core}" stroke="rgb(${T.ember})" stroke-width="1.6"/></svg>`;
+    }
   }
 
   function loadLevel(i, fresh=false){
@@ -701,7 +786,7 @@
     braid = p.braid; needFrac = p.needFrac;
     applyTheme(worldOf(cur), levelOf(cur));
     Snd.setWorld(curLook);
-    if (markEl) markEl.textContent = `${T.name} · ${levelOf(cur)+1}`;
+    if (markEl) markEl.textContent = `${levelOf(cur)+1}`;   // the number alone; the art says which world
     hideMap();
     if (fresh) dropSave(cur);
     if (!restoreLevel(cur)) resetGame(true);         // pick the run back up, or deal a new maze
@@ -1156,14 +1241,18 @@
     }
     g.globalAlpha = 1;
     const segs = sceneWalls(cs, ox, oy);
-    const thick = Math.max(3, cs*0.20);
-    g.lineCap = 'round'; g.lineJoin = 'round';
+    // same relief as the hedge card: thickness and throw scale with cs, steep and mostly vertical
+    const wk = cs/42;
+    const thick = Math.max(5, cs*0.357);
+    g.lineCap = 'square'; g.lineJoin = 'miter';   // flat, but extends half a stroke past each end so an L of two walls meets in a solid corner instead of leaving a notch
     const wallLine = (col, lw, dx, dy) => {
       g.strokeStyle = col; g.lineWidth = lw; sceneSegPath(g, segs, dx, dy); g.stroke();
     };
-    wallLine('rgba(4,6,9,.85)', thick*1.2, 1.6, 1.6);
-    wallLine(`rgb(${shadeRGB(L.wall,0.32).join(',')})`, thick, 0, 0);
-    wallLine(`rgb(${shadeRGB(L.wall,0.62).join(',')})`, Math.max(1, thick*0.3), -0.7, -0.9);
+    wallLine('rgba(4,6,9,.85)', thick*1.2, 1.5*wk, 4.5*wk);
+    g.save();
+    g.lineWidth = thick; g.strokeStyle = cardAnchor(wallStoneTile(L.wall, cs), 0, 0);
+    sceneSegPath(g, segs, 0, 0); g.stroke();
+    g.restore();
 
     const pts = scenePts(cs, ox, oy), head = pts[pts.length-1];
     g.lineJoin = 'round'; g.lineCap = 'round';
@@ -1197,6 +1286,9 @@
 
   // Garden: the clipped hedge, the bright lawn and the filament, under cloud
   function sceneGarden(g, w, h, cs, ox, oy){
+    // shadows the module-level GARDEN on purpose: the world-select card always shows
+    // the same Bloom art regardless of which season the player last loaded in-level
+    const GARDEN = GARDEN_PALETTES[LOOK.BLOOM];
     const k = cs/42;
     g.fillStyle = GARDEN.grass; g.fillRect(0,0,w,h);
     g.fillStyle = cardAnchor(paperTile(), 0, 0); g.fillRect(0,0,w,h);
@@ -1229,21 +1321,6 @@
         g.quadraticCurveTo(sx, sy, sx, sy+sr); g.quadraticCurveTo(sx, sy, sx-sr, sy);
         g.quadraticCurveTo(sx, sy, sx, sy-sr); g.fill();
       }
-      if (SCENE_ON.has(sKey(c,r)) || hash(c*5.3 + r*2.9, 21) > 0.34) continue;
-      const fx = x + cs*0.24 + hash(c,r,22)*cs*0.5, fy = y + cs*0.26 + hash(c,r,23)*cs*0.45;
-      g.strokeStyle = GARDEN.stem; g.lineWidth = Math.max(1.4, cs*0.052); g.lineCap='round';
-      g.beginPath(); g.moveTo(fx, fy + cs*0.31); g.lineTo(fx, fy + cs*0.07); g.stroke();
-      g.save();
-      g.shadowColor = GARDEN.cast; g.shadowBlur = cs*0.095; g.shadowOffsetY = cs*0.06;
-      g.fillStyle = hash(c,r,24) > 0.5 ? GARDEN.petal : GARDEN.petalPink;
-      for (let p=0;p<6;p++){
-        const a = p/6*6.2832;
-        g.beginPath();
-        g.ellipse(fx + Math.cos(a)*cs*0.100, fy + Math.sin(a)*cs*0.100, cs*0.081, cs*0.081, 0, 0, 7);
-        g.fill();
-      }
-      g.restore();
-      g.fillStyle = GARDEN.pollen; g.beginPath(); g.arc(fx, fy, cs*0.057, 0, 7); g.fill();
     }
 
     const segs = sceneWalls(cs, ox, oy);
@@ -1336,28 +1413,20 @@
     g.fillRect(ox - cs*0.14, oy - cs*0.14, SCENE_W*cs + cs*0.28, SCENE_H*cs + cs*0.28);
     g.restore();
 
-    const segs = sceneWalls(cs, ox, oy);
-    const thick = Math.max(4, cs*0.33);
-    const line = (lw, col, dx, dy) => {
-      g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'butt'; g.lineJoin = 'round';
-      sceneSegPath(g, segs, dx, dy); g.stroke();
-    };
-    line(thick, CARD.slot, 0.4*k, 3.4*k);
-    g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
-    line(thick, CARD.shadow + '1)', 4*k, 5.4*k); g.restore();
-    line(thick, cardAnchor(cardTile('face'), 0, 0), 0, 0);
-    g.strokeStyle = CARD.flute; g.lineWidth = 1;
-    const half = thick*0.30;
-    g.beginPath();
-    for (let n=0;n<segs.length;n+=4){
-      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
-      const len = Math.hypot(x2-x1, y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
-      const nx=-uy*half, ny=ux*half;
-      for (let d=2; d<len; d+=3.6){
-        g.moveTo(x1+ux*d-nx, y1+uy*d-ny); g.lineTo(x1+ux*d+nx, y1+uy*d+ny);
-      }
+    // the same corrugated wall the board draws — sceneWalls can hand the same physical
+    // wall in from both of its cells, so it gets the identical dedup the board does
+    // before any of the corner or end-cap logic sees it
+    const rawScene = sceneWalls(cs, ox, oy);
+    const sceneMap = new Map();
+    for (let n=0;n<rawScene.length;n+=4){
+      const x1=rawScene[n],y1=rawScene[n+1],x2=rawScene[n+2],y2=rawScene[n+3];
+      const a=[Math.round(x1*4),Math.round(y1*4)], b=[Math.round(x2*4),Math.round(y2*4)];
+      const [p,q] = (a[0]<b[0] || (a[0]===b[0] && a[1]<b[1])) ? [a,b] : [b,a];
+      sceneMap.set(p[0]+','+p[1]+','+q[0]+','+q[1], [x1,y1,x2,y2]);
     }
-    g.stroke();
+    const segs = [];
+    sceneMap.forEach(s => segs.push(s[0],s[1],s[2],s[3]));
+    drawCardWalls(g, segs, cs, k, 0, 0);
 
     const pts = scenePts(cs, ox, oy), head = pts[pts.length-1];
     g.lineJoin = 'round'; g.lineCap = 'round';
@@ -1365,18 +1434,10 @@
     g.shadowColor = CARD.shadow + '.45)'; g.shadowBlur = cs*0.10; g.shadowOffsetY = cs*0.05;
     g.strokeStyle = CARD.yarnDark; g.lineWidth = cs*0.20; sceneStroke(g, pts);
     g.restore();
-    g.strokeStyle = CARD.yarn; g.lineWidth = cs*0.155; sceneStroke(g, pts);
-    g.strokeStyle = CARD.yarnLit; g.lineWidth = Math.max(1, cs*0.05);
-    g.beginPath();
-    for (let i=1; i<pts.length; i++){
-      const [x1,y1] = pts[i-1], [x2,y2] = pts[i];
-      const len = Math.hypot(x2-x1, y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
-      const nx=-uy*cs*0.067, ny=ux*cs*0.067, sx=ux*cs*0.047, sy=uy*cs*0.047;
-      for (let d=0; d<len; d+=cs*0.147){
-        g.moveTo(x1+ux*d-nx-sx, y1+uy*d-ny-sy); g.lineTo(x1+ux*d+nx+sx, y1+uy*d+ny+sy);
-      }
-    }
-    g.stroke();
+    // core + twist together, same containment the live board uses
+    yarnBodyAndTwist(g, pts.map(p => ({x:p[0], y:p[1]})), cs, w, h,
+                     Math.min(window.devicePixelRatio || 1, 2),
+                     (c) => sceneStroke(c, pts));
     g.strokeStyle = '#f4ecd8'; g.lineWidth = Math.max(1.4, cs*0.06);
     g.beginPath(); g.arc(pts[0][0], pts[0][1], cs*0.24, 0, 7); g.stroke();
     g.save();
@@ -1392,10 +1453,9 @@
     const save = [cellSize, camX, camY];
     cellSize = cs; camX = -ox; camY = -oy;              // flapPath works in world space
     cardShutFlaps(g, -ox, -oy, shut, k);
+    // one caught partway, opening as shutters exactly as it does in play
     g.save(); g.globalAlpha = 0.92;
-    g.beginPath(); const dep = flapPath(g, 5, 4, -ox, -oy, 0.55, 0, -2.4*k);
-    g.fillStyle = cardAnchor(cardTile(dep >= 0 ? 'face' : 'back'), -ox, -oy); g.fill();
-    g.strokeStyle = CARD.edge; g.lineWidth = 1; g.stroke();
+    shutterFlap(g, 5, 4, -ox, -oy, 0.55, k);
     g.restore();
     cellSize = save[0]; camX = save[1]; camY = save[2];
   }
@@ -1558,37 +1618,101 @@
     const f = LOOK_FX[WORLDS[wi].art].part;         // keep positions, take the new motes
     bgParts.forEach(p => { p.r = f.size[0] + Math.random()*(f.size[1]-f.size[0]); });
   }
+  /* ---- the page is the card, spread out ------------------------------------------
+     The ground behind the deck is the world's own scene rendered at a few dozen pixels
+     and then stretched across the whole page. Blowing something that small up is the
+     blur — no filter, no per-frame cost — and what comes out is a soft field of exactly
+     the colours that are on the card, in roughly the places they sit on it. Light from
+     the lantern lands where the lantern is; the dark end of the maze stays dark.
+
+     That is the part that was missing. A tint pulled from a palette can match a card,
+     but it cannot be lit by it, so the card always read as pasted on top of a coloured
+     sheet. This is derived from the art itself, so it moves when the art does.
+     -------------------------------------------------------------------------------- */
+  // A plain box blur over the tiny canvas's own pixels, run a few times to approximate a
+  // gaussian. This is done once here, baked into the bitmap, rather than leaning on the
+  // canvas context's `filter` property in bgFrame every frame — Safari doesn't support
+  // `filter` on a 2D context, so that version drew the bloom crisp there instead of soft.
+  function boxBlur(data, w, h, r){
+    const out = new Uint8ClampedArray(data.length);
+    for (let y=0;y<h;y++){
+      for (let x=0;x<w;x++){
+        let sr=0,sg=0,sb=0,sa=0,n=0;
+        for (let dy=-r;dy<=r;dy++){
+          const yy = Math.min(h-1, Math.max(0, y+dy));
+          for (let dx=-r;dx<=r;dx++){
+            const xx = Math.min(w-1, Math.max(0, x+dx));
+            const i = (yy*w+xx)*4;
+            sr+=data[i]; sg+=data[i+1]; sb+=data[i+2]; sa+=data[i+3]; n++;
+          }
+        }
+        const o = (y*w+x)*4;
+        out[o]=sr/n; out[o+1]=sg/n; out[o+2]=sb/n; out[o+3]=sa/n;
+      }
+    }
+    return out;
+  }
+
+  const mapBloomCache = {};
+  function mapBloom(wi){
+    if (mapBloomCache[wi] !== undefined) return mapBloomCache[wi];
+    let cv = null;
+    try {
+      cv = document.createElement('canvas');
+      cv.width = 34; cv.height = 60;              // deliberately tiny: the upscale is the blur
+      const g = cv.getContext('2d');
+      const cs = cv.width/5.2, ox = -cs*0.45, oy = cv.height/2 - 4.5*cs;
+      (SCENES[wi] || SCENES[0])(g, cv.width, cv.height, cs, ox, oy);
+      const id = g.getImageData(0, 0, cv.width, cv.height);
+      let data = id.data;
+      for (let pass=0; pass<3; pass++) data = boxBlur(data, cv.width, cv.height, 2);
+      id.data.set(data);
+      g.putImageData(id, 0, 0);
+    } catch(e){ cv = null; }                      // a bad frame here must not kill the map
+    return (mapBloomCache[wi] = cv);
+  }
+
   function bgFrame(t){
     if (!mapEl.classList.contains('show')){ bgRaf = 0; return; }
     const w = bgCanvas.clientWidth, h = bgCanvas.clientHeight;
     const ai = WORLDS[bgWorld].art, W_ = LOOKS[ai], fx = LOOK_FX[ai], f = fx.part;
     // The page is paper again — a floor texture here read as noise once it was knocked
     // back far enough to sit under the cards, and as clutter when it was not.
+    // the tint is only the ground the bloom is laid over now, so it sits back again
     const idc = (CARD_MAT[bgWorld] || CARD_MAT[0]).edge;
-    const target = toRGB(idc).map(c => 242 - (242-c)*0.42);
+    const target = toRGB(idc).map(c => 242 - (242-c)*0.30);
     bgTint = bgTint ? bgTint.map((c,i)=> c + (target[i]-c)*0.08) : target.slice();
     bgCtx.fillStyle = `rgb(${bgTint.map(c=>c|0).join(',')})`;
     bgCtx.fillRect(0,0,w,h);
 
-    /* The card lights the page it is lying on. A wide pool of the world's own colour is
-       centred where the card sits and falls away from it, and a vignette pulls the far
-       corners down — together they read as one light source at the card rather than a
-       flat sheet, which is what was missing. The pool breathes very slightly, on the
-       same slow cycle the lantern uses, so the page is never quite static. */
+    // the card's own scene, blown up until it is only light and colour. Drawn wider and
+    // taller than the page so the interesting middle of it lands behind the card rather
+    // than its edges.
+    const bloom = mapBloom(bgWorld);
+    if (bloom){
+      const over = 1.5, bw = w*over, bh = h*over;
+      bgCtx.globalAlpha = 0.68;
+      bgCtx.drawImage(bloom, (w-bw)/2, (h-bh)/2 - h*0.04, bw, bh);
+      bgCtx.globalAlpha = 1;
+    }
+
+    /* One light, agreeing with the card's own. The pool sits where the card sits and the
+       vignette pulls the far corners down, so the page has an up and a down instead of
+       being an even field. It breathes on the same slow cycle the lantern does. */
     const cxp = w/2, cyp = h*0.44;
     const tc = toRGB(W_.thread).join(',');
     const breathe = 1 + 0.06*Math.sin(t/2600);
     const glow = bgCtx.createRadialGradient(cxp, cyp, 0, cxp, cyp, Math.max(w,h)*0.72*breathe);
-    glow.addColorStop(0,    `rgba(${tc},.42)`);
-    glow.addColorStop(0.40, `rgba(${tc},.19)`);
+    glow.addColorStop(0,    `rgba(${tc},.20)`);
+    glow.addColorStop(0.40, `rgba(${tc},.09)`);
     glow.addColorStop(1,    `rgba(${tc},0)`);
     bgCtx.fillStyle = glow; bgCtx.fillRect(0,0,w,h);
 
     const dk = toRGB(idc).map(c => Math.round(c*0.5)).join(',');
-    const vig = bgCtx.createRadialGradient(cxp, cyp, Math.min(w,h)*0.34,
+    const vig = bgCtx.createRadialGradient(cxp, cyp, Math.min(w,h)*0.30,
                                            cxp, cyp, Math.max(w,h)*0.86);
     vig.addColorStop(0, `rgba(${dk},0)`);
-    vig.addColorStop(1, `rgba(${dk},.20)`);
+    vig.addColorStop(1, `rgba(${dk},.30)`);
     bgCtx.fillStyle = vig; bgCtx.fillRect(0,0,w,h);
     for (const p of bgParts){                        // the same drift a level uses, inked
       p.y += f.vy; p.x += Math.sin(t/900 + p.ph) * f.drift;
@@ -1793,7 +1917,9 @@
         if (light > 0.55) warnedLow = false;
       }
       if (!warnedLow && light < CRIT){               // dramatic first warning
-        warnedLow = true; showHint('Your lantern is fading — find a flame'); Snd.low();
+        warnedLow = true;
+        showHint(T.skin === 'garden' ? 'The breeze is dying — find a gust' : 'Your lantern is fading — find a flame');
+        Snd.low();
       }
     }
     reveal();
@@ -1803,7 +1929,9 @@
       else {                                        // the way is sealed until the quota is met
         pings.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now() });
         Snd.sealed();
-        showHint(`Gather ${emberNeed - emberGot} more ember${emberNeed-emberGot===1?'':'s'} to open the way`);
+        const remain = emberNeed - emberGot;
+        const item = T.skin === 'garden' ? `vane${remain===1?'':'s'}` : `ember${remain===1?'':'s'}`;
+        showHint(`Gather ${remain} more ${item} to open the way`);
       }
     }
   }
@@ -2102,6 +2230,41 @@
      frame time and asked to paint. Adding a world's look means adding one entry to
      SKINS and pointing that world at it; nothing else in the game needs to know.
      -------------------------------------------------------------------------- */
+  // Rough fieldstone for the mine walls: irregular-width blocks in a few rows, each with
+  // its own bright top bevel, tinted from the world's own wall colour. Row height stays
+  // constant and each row's stone widths always sum back to the full tile width, so the
+  // pattern still repeats seamlessly even though it isn't a uniform grid. Anchored to
+  // world space (via cardAnchor) so it doesn't swim as the camera pans.
+  const wallStoneCache = {};
+  function wallStoneTile(color, cellPx){
+    const key = (color || T.wall) + '@' + Math.round(cellPx || 42);
+    if (wallStoneCache[key]) return wallStoneCache[key];
+    const rowH = Math.max(7, Math.round((cellPx || 42) * 0.34));
+    const N = rowH * 4;
+    const rows = [3, 4, 3, 4];              // stones per row — varying the count is what
+    const cv = document.createElement('canvas'); cv.width = cv.height = N;   // keeps rows from lining up into a grid
+    const g = cv.getContext('2d');
+    const R = (x,y,o)=>{ const n=Math.sin(x*12.9898 + y*78.233 + o*4.7)*43758.5453; return n-Math.floor(n); };
+    g.fillStyle = `rgba(${WALL_SHADOW.join(',')},1)`; g.fillRect(0,0,N,N);   // mortar shows in the gaps
+    rows.forEach((cols, rIdx) => {
+      const y = rIdx*rowH;
+      const raw = []; let sum = 0;
+      for (let c=0;c<cols;c++){ const w = 0.65 + R(c,rIdx,1)*0.7; raw.push(w); sum += w; }
+      let x = 0, placed = 0;
+      for (let c=0;c<cols;c++){
+        const w = c===cols-1 ? (N-placed) : Math.round(raw[c]/sum*N);
+        const base = shadeRGB(color, 0.16 + R(c,rIdx,2)*0.22);
+        const lit  = shadeRGB(color, 0.48 + R(c,rIdx,3)*0.16);
+        g.fillStyle = `rgb(${base.join(',')})`;
+        g.fillRect(x+1, y+1, Math.max(1,w-2), rowH-2);
+        g.fillStyle = `rgb(${lit.join(',')})`;              // bright top bevel per stone
+        g.fillRect(x+1, y+1, Math.max(1,w-2), Math.max(1, rowH*0.24));
+        x += w; placed += w;
+      }
+    });
+    return (wallStoneCache[key] = ctx.createPattern(cv, 'repeat'));
+  }
+
   function drawIso(t){
     ctx.clearRect(0,0,viewW,viewH);
     // ambient floor
@@ -2135,10 +2298,14 @@
         const w = cells[i].walls;
         if (w[0]||w[1]||w[2]||w[3]){
           const bkt = wallBuckets[Math.min(WB-1, Math.floor(b*WB))];
+          // top/left are always this cell's to declare; right/bottom are the neighbour's
+          // to declare too, so only take them here at the edge of the render window (or
+          // world) where that neighbour won't get a turn — otherwise the same physical
+          // wall gets pushed from both sides and drawn twice.
           if (w[0]) bkt.push(x,y,x+s,y);
           if (w[3]) bkt.push(x,y,x,y+s);
-          if (w[1]) bkt.push(x+s,y,x+s,y+s);
-          if (w[2]) bkt.push(x,y+s,x+s,y+s);
+          if (w[1] && (c===c1 || brightnessOf(idx(c+1,r))<=0)) bkt.push(x+s,y,x+s,y+s);
+          if (w[2] && (r===r1 || brightnessOf(idx(c,r+1))<=0)) bkt.push(x,y+s,x+s,y+s);
         }
       }
     }
@@ -2147,8 +2314,11 @@
 
     // walls: solid & opaque, drawn in batched passes — all shadows first, then all cores, then a
     // thin highlight. No transparency and single-stroke-per-batch, so overlaps never show.
-    const thick = Math.max(4, cellSize*0.14);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // Same relief as the hedges: thickness and offsets scale with the cell, with a steep
+    // mostly-vertical throw between the shadow and the lit edge rather than a flat diagonal.
+    const wk = cellSize/42;
+    const thick = Math.max(5, cellSize*0.357);
+    ctx.lineCap = 'square'; ctx.lineJoin = 'miter';   // flat, but extends half a stroke past each end so an L of two walls meets in a solid corner instead of leaving a notch
     const strokeBuckets = (col, lw, dx, dy, lighten)=>{
       ctx.save(); if (dx||dy) ctx.translate(dx,dy); ctx.lineWidth = lw;
       for (let lvl=0; lvl<WB; lvl++){
@@ -2161,9 +2331,32 @@
       }
       ctx.restore();
     };
-    strokeBuckets(WALL_SHADOW, thick*1.2, 1.7, 1.7);            // drop shadow (opaque)
-    strokeBuckets(wallCoreRGB, thick, 0, 0);                    // solid raised core
-    strokeBuckets(wallHiRGB, Math.max(1.2, thick*0.3), -0.7, -0.9);  // top highlight edge
+    strokeBuckets(WALL_SHADOW, thick*1.2, 1.5*wk, 4.5*wk);            // drop shadow (opaque)
+
+    // solid raised core, replaced with a world-anchored stone-block pattern so the
+    // wall face reads as masonry rather than a flat fill
+    ctx.save();
+    ctx.lineWidth = thick;
+    ctx.strokeStyle = cardAnchor(wallStoneTile(T.wall, cellSize), camX, camY);
+    ctx.beginPath();
+    for (let lvl=0; lvl<WB; lvl++){
+      const arr = wallBuckets[lvl]; if (!arr.length) continue;
+      for (let k=0;k<arr.length;k+=4){ ctx.moveTo(arr[k],arr[k+1]); ctx.lineTo(arr[k+2],arr[k+3]); }
+    }
+    ctx.stroke();
+    ctx.restore();
+    // ...and dimmed toward fog per brightness bucket, same falloff the flat fill used
+    ctx.save(); ctx.lineWidth = thick;
+    for (let lvl=0; lvl<WB; lvl++){
+      const arr = wallBuckets[lvl]; if (!arr.length) continue;
+      const fade = 1 - (lvl+0.5)/WB;
+      if (fade <= 0.02) continue;
+      ctx.strokeStyle = `rgba(${bgRGB.join(',')},${fade.toFixed(3)})`;
+      ctx.beginPath();
+      for (let k=0;k<arr.length;k+=4){ ctx.moveTo(arr[k],arr[k+1]); ctx.lineTo(arr[k+2],arr[k+3]); }
+      ctx.stroke();
+    }
+    ctx.restore();
 
     drawParticles(t);                                         // drifting atmosphere in the lantern light
     const haze = LOOK_FX[curLook].haze;
@@ -2240,15 +2433,59 @@
      way the previous hedge world did — including the footprints, which only change when
      you commit to a cell.
      ---------------------------------------------------------------------------- */
-  const GARDEN = {
-    grass:'#9ed163',
-    hedgeLo:'#2c7038', hedgeMid:'#48a04c', hedgeHi:'#63b862',
-    cloudLo:'#c2d2c4', cloudMid:'#e7eee5', cloudHi:'#fbfdfa',
-    cast:'rgba(38,64,30,.42)',
-    pathLo:'#d9c69c', path:'#f4ead0', lamp:'#ffe6a8', lampCore:'#fffdf2',
-    petal:'#fbfbf4', petalPink:'#ffdce8', pollen:'#eec14a', stem:'#2c7038',
-    spark:'#f6e07c',
+  // One of these per garden look, keyed by the same LOOK index the level's `T` uses —
+  // GARDEN itself is reassigned to the right entry in applyTheme() as the level changes,
+  // so the whole hedge/cloud/path palette turns over with the season. sceneGarden (the
+  // world-select card) shadows this with a fixed Bloom reference of its own further
+  // down, so the card's art never drifts with whatever level you last played.
+  const GARDEN_PALETTES = {
+    [LOOK.BLOOM]: {
+      grass:'#9ed163',
+      hedgeLo:'#2c7038', hedgeMid:'#48a04c', hedgeHi:'#63b862',
+      cloudLo:'#c2d2c4', cloudMid:'#e7eee5', cloudHi:'#fbfdfa',
+      cast:'rgba(38,64,30,.42)',
+      pathLo:'#d9c69c', path:'#f4ead0', lamp:'#ffe6a8', lampCore:'#fffdf2',
+      petal:'#fbfbf4', petalPink:'#ffdce8', pollen:'#eec14a', stem:'#2c7038',
+      spark:'#f6e07c',
+    },
+    [LOOK.SPRING]: {
+      grass:'#b9e07a',
+      hedgeLo:'#2e5f28', hedgeMid:'#5cae4a', hedgeHi:'#a6e26b',
+      cloudLo:'#cfe0c8', cloudMid:'#eaf3e0', cloudHi:'#fbfdfa',
+      cast:'rgba(38,64,30,.38)',
+      pathLo:'#f0bed0', path:'#ffe9ef', lamp:'#ffd3e6', lampCore:'#fffdf2',
+      petal:'#fffdf9', petalPink:'#ff9ec4', pollen:'#f7c8db', stem:'#2e5f28',
+      spark:'#ffe2ef',
+    },
+    [LOOK.FALL]: {
+      grass:'#c99a45',
+      hedgeLo:'#4a2410', hedgeMid:'#b5551f', hedgeHi:'#e8a33d',
+      cloudLo:'#dcc39a', cloudMid:'#f0dcc0', cloudHi:'#fff6e6',
+      cast:'rgba(58,32,14,.45)',
+      pathLo:'#b3813f', path:'#e8c98a', lamp:'#ffb45a', lampCore:'#fff3df',
+      petal:'#fdeccb', petalPink:'#e8934a', pollen:'#d9782a', stem:'#4a2410',
+      spark:'#ffcf7a',
+    },
+    [LOOK.WINTER]: {
+      grass:'#eef4f2',
+      hedgeLo:'#12261c', hedgeMid:'#1f4530', hedgeHi:'#ffffff',
+      cloudLo:'#d7e3ea', cloudMid:'#eef3f6', cloudHi:'#ffffff',
+      cast:'rgba(14,30,38,.35)',
+      pathLo:'#b9d0da', path:'#dce9ee', lamp:'#bfe9f2', lampCore:'#ffffff',
+      petal:'#ffffff', petalPink:'#8fd6e8', pollen:'#cdeef5', stem:'#1f4530',
+      spark:'#d8f4fb',
+    },
+    [LOOK.DEAD]: {
+      grass:'#a49986',
+      hedgeLo:'#241b12', hedgeMid:'#4a4030', hedgeHi:'#847a63',
+      cloudLo:'#b6ae9c', cloudMid:'#cfc9ba', cloudHi:'#e2dccb',
+      cast:'rgba(28,22,14,.45)',
+      pathLo:'#a89f88', path:'#c7c0ac', lamp:'#a89878', lampCore:'#d8d2c2',
+      petal:'#c9c0a8', petalPink:'#8a7d5c', pollen:'#8a7d5c', stem:'#241b12',
+      spark:'#b3a98f',
+    },
   };
+  let GARDEN = GARDEN_PALETTES[LOOK.BLOOM];
   let paperPat = null, paperTileCv = null;
   // the tooth of the stock, world-anchored so it never swims under the camera
   function paperTile(){
@@ -2407,22 +2644,6 @@
         g.quadraticCurveTo(sx, sy, sx, sy+sr); g.quadraticCurveTo(sx, sy, sx-sr, sy);
         g.quadraticCurveTo(sx, sy, sx, sy-sr); g.fill();
       }
-      if (inTrail.has(i) || hash(c*5.3 + r*2.9, 21) > 0.34) continue;
-      const fx = x + s*0.24 + hash(c,r,22)*s*0.5, fy = y + s*0.26 + hash(c,r,23)*s*0.45;
-      g.strokeStyle = GARDEN.stem; g.lineWidth = Math.max(1.4, s*0.052); g.lineCap = 'round';
-      g.beginPath(); g.moveTo(fx, fy + s*0.31); g.lineTo(fx, fy + s*0.07); g.stroke();
-      g.save();
-      g.shadowColor = GARDEN.cast; g.shadowBlur = s*0.095; g.shadowOffsetY = s*0.06;
-      g.fillStyle = hash(c,r,24) > 0.5 ? GARDEN.petal : GARDEN.petalPink;
-      for (let p=0;p<6;p++){
-        const a = p/6*6.2832;
-        g.beginPath();
-        g.ellipse(fx + Math.cos(a)*s*0.100, fy + Math.sin(a)*s*0.100, s*0.081, s*0.081, 0, 0, 7);
-        g.fill();
-      }
-      g.restore();
-      g.fillStyle = GARDEN.pollen;
-      g.beginPath(); g.arc(fx, fy, s*0.057, 0, 7); g.fill();
     }
 
     // the hedge: a shadow on the grass, then three sheets
@@ -2465,11 +2686,237 @@
   }
 
   // only the things that move between steps
+  // Gusts: the garden's light fuel. Same data as flames (the `flames` set, the same
+  // low-light boost) but drawn as three wind lines instead of fire, each ending in a small
+  // curl. Nothing is drawn outside the current reveal window — no faint always-on ghost —
+  // so each line is a true draw-on: a hard-edged mask window slides in from the left to
+  // reveal it, holds, then slides again to erase it from the left outward (last thing
+  // visible is the curled tip), rests briefly, and repeats. The three lines are staggered
+  // so they draw on one after another, top to bottom, rather than all at once.
+  const WIND_LINES = [
+    { y:-0.30, len:0.42, curl:0.15, curlDir: 1  },   // top — curls up
+    { y: 0,    len:0.62, curl:0.19, curlDir: 1  },   // middle — curls up
+    { y: 0.30, len:0.46, curl:0.15, curlDir: -1 },   // bottom — curls down
+  ];
+  // bounding box helpers: the loop now sits at the START of the line (like the classic
+  // wind glyph — curl first, then the line trails out to the right of it), so it bulges
+  // slightly left of the line's nominal start point
+  function windLineLeftPad(ln){ return ln.curl ? ln.curl*1.15 : 0; }
+  function windLinePath(scale, ln){
+    const x0 = -scale*0.55, x1 = x0 + scale*ln.len;
+    if (ln.curl){
+      // the loop leads the line: a small hook the line unwinds out of, curling up or
+      // down depending on the line, then continuing straight out to the right
+      const r = scale*ln.curl;
+      if (ln.curlDir < 0){
+        ctx.arc(x0, scale*ln.y + r, r, -Math.PI/2 - Math.PI*1.5, -Math.PI/2, false);
+      } else {
+        ctx.arc(x0, scale*ln.y - r, r, Math.PI/2 + Math.PI*1.5, Math.PI/2, true);
+      }
+      ctx.lineTo(x1, scale*ln.y);
+    } else {
+      ctx.moveTo(x0, scale*ln.y);
+      ctx.lineTo(x1, scale*ln.y);
+    }
+  }
+  function windGlyph(cx0, cy0, scale, intensity, t, seed){
+    const puff = T.ember;
+    ctx.save();
+    ctx.translate(cx0, cy0);
+    ctx.lineCap = 'round';
+
+    const period = 1900, stagger = 260;
+    const growDur = 0.32, holdDur = 0.12, eraseDur = 0.32; // remainder of the period rests empty
+    const x0 = -scale*0.55;
+    WIND_LINES.forEach((ln, li) => {
+      const local = (((t + seed*400 - li*stagger) % period) + period) % period;
+      const ph = local / period;
+      let a, b; // visible window, as a 0..1 fraction along the line's extent
+      if (ph < growDur){ a = 0; b = ph/growDur; }
+      else if (ph < growDur+holdDur){ a = 0; b = 1; }
+      else if (ph < growDur+holdDur+eraseDur){ a = (ph-growDur-holdDur)/eraseDur; b = 1; }
+      else return; // resting between cycles — nothing drawn at all, no ghost line
+      if (b-a <= 0.01) return;
+      const leftBound = x0 - scale*windLineLeftPad(ln);
+      const rightBound = x0 + scale*ln.len;
+      const extPx = rightBound - leftBound;
+      const wx0 = leftBound + extPx*a, wx1 = leftBound + extPx*b;
+      const curlPad = ln.curl ? scale*ln.curl*2.3 : 0;   // clip tall enough for the curl on either side
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(wx0 - scale*0.03, scale*ln.y - scale*0.18 - curlPad, (wx1-wx0) + scale*0.06, scale*0.36 + curlPad*2);
+      ctx.clip();
+      // dark under-stroke for contrast, then the bright core — both hard-edged to the
+      // same window, no soft fade or always-on ghost beyond it
+      ctx.strokeStyle = `rgba(4,6,9,${(0.30*intensity).toFixed(3)})`;
+      ctx.lineWidth = Math.max(2.4, scale*0.135);
+      ctx.beginPath(); windLinePath(scale, ln); ctx.stroke();
+      ctx.strokeStyle = `rgba(${puff},${(0.98*intensity).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.8, scale*0.095);
+      ctx.beginPath(); windLinePath(scale, ln); ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+  function drawGusts(t){
+    const head = trail[trail.length-1];
+    const lowLight = 1 - light;
+    const nearRange = 6 + lowLight*6;
+    const boost = 1 + lowLight*0.9;
+    flames.forEach(i => {
+      const dCells = dist(i, head);
+      const inSight = nearDepth.has(i);
+      if (!inSight && !explored.has(i) && dCells > nearRange) return;
+      let intensity = inSight ? 1 : (explored.has(i) ? 0.7 : Math.max(0, 0.8 - dCells/(nearRange+4)));
+      intensity = Math.min(1, intensity*boost);
+      if (intensity <= 0.03) return;
+      const bob = Math.sin(t/900 + i*1.7)*cellSize*0.06;
+      const sx = (cx(i)+0.5)*cellSize - camX;
+      const sy = (cy(i)+0.5)*cellSize - camY + bob;
+      if (sx<-cellSize||sx>viewW+cellSize||sy<-cellSize||sy>viewH+cellSize) return;
+      windGlyph(sx, sy, cellSize*0.62, intensity, t, i);
+    });
+  }
+
+  // Vanes: the garden's exit key — a tiny toy pinwheel, not a glow. Embers read as a
+  // light source (soft radial + a dot); a vane needs to read as an object instead, so
+  // there's no ambient glow here at all. Bold, evenly-filled blades on a clean continuous
+  // spin — the rotation itself carries the "this is a pinwheel" read, so the blades don't
+  // need an alternating-opacity trick to sell it.
+  function drawVanes(t){
+    const head = trail[trail.length-1];
+    const pink = T.beaconRGB, nearRange = 5;
+    embers.forEach(i => {
+      const dCells = dist(i, head);
+      const inSight = nearDepth.has(i);
+      if (!inSight && !explored.has(i) && dCells > nearRange) return;
+      let intensity = inSight ? 1 : (explored.has(i) ? 0.6 : Math.max(0, 0.7 - dCells/(nearRange+4)));
+      if (intensity <= 0.02) return;
+      const spin = t/900 + i;
+      const sx = (cx(i)+0.5)*cellSize - camX;
+      const sy = (cy(i)+0.5)*cellSize - camY + Math.sin(t/700 + i)*cellSize*0.05;
+      if (sx<-cellSize||sx>viewW+cellSize||sy<-cellSize||sy>viewH+cellSize) return;
+      // a thin ring that breathes outward and fades — reads as "pick this up" without
+      // filling in like a light source the way the embers' glow does
+      const pulse = (t/900 + i*0.6) % 1;
+      ctx.beginPath(); ctx.arc(sx, sy, cellSize*(0.20 + 0.24*pulse), 0, 7);
+      ctx.strokeStyle = `rgba(${pink},${0.55*(1-pulse)*intensity})`;
+      ctx.lineWidth = Math.max(1, cellSize*0.025); ctx.stroke();
+      ctx.save(); ctx.translate(sx,sy); ctx.rotate(spin);
+      // a wedge disc with a scalloped, pinking-shears-style rim. Wedges and rim are built
+      // from the exact same vertex list rather than a clip()'d arc — `beginPath()` wipes
+      // the whole current path regardless of save()/restore(), so drawing each wedge with
+      // its own beginPath() was silently erasing the rim path before it got stroked,
+      // leaving only the last wedge outlined. Sharing one vertex array sidesteps that.
+      const outline = Math.max(2.2, cellSize*0.045);
+      const r = cellSize*0.20, bump = cellSize*0.03, n = 16, wedges = 8, perW = n/wedges;
+      const pts = [];
+      for (let k=0;k<n;k++){
+        const a = (k/n)*Math.PI*2;
+        const rr = r + (k%2 ? bump : -bump*0.4);
+        pts.push([Math.cos(a)*rr, Math.sin(a)*rr]);
+      }
+      for (let w=0; w<wedges; w++){
+        ctx.beginPath(); ctx.moveTo(0,0);
+        for (let s=0; s<=perW; s++){ const p = pts[(w*perW+s) % n]; ctx.lineTo(p[0], p[1]); }
+        ctx.closePath();
+        ctx.fillStyle = w%2 ? `rgba(${pink},${0.92*intensity})` : `rgba(${T.coreRGB},${0.92*intensity})`;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      pts.forEach((p,idx)=>{ if (idx===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+      ctx.closePath();
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = `rgba(4,6,9,${0.72*intensity})`; ctx.lineWidth = outline;
+      ctx.stroke();
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.06, 0, 7);
+      ctx.fillStyle = `rgba(${pink},${0.95*intensity})`; ctx.fill();
+      ctx.strokeStyle = `rgba(4,6,9,${0.72*intensity})`; ctx.lineWidth = outline*0.85; ctx.stroke();
+    });
+  }
+
+  // The windmill: the garden's beacon. Sealed and still until enough vanes are gathered,
+  // then it turns — the same closed-until-earned beat the mine's beacon has, just wind
+  // instead of light. Vanes fill in one at a time as emberGot climbs toward emberNeed.
+  function drawWindmill(t){
+    const head = trail[trail.length-1];
+    const open = exitOpen();
+    const bx=(cx(endCell)+0.5)*cellSize, by=(cy(endCell)+0.5)*cellSize;
+    const hx=(cx(head)+0.5)*cellSize, hy=(cy(head)+0.5)*cellSize;
+    const dCells = Math.hypot(bx-hx, by-hy)/cellSize;
+    const intensity = Math.max(0.05, Math.min(1, 1 - dCells/16)) * (open ? 1 : 0.5);
+    const sx = bx - camX, sy = by - camY;
+    const pink = T.beaconRGB;
+    const onScreen = sx>-cellSize && sx<viewW+cellSize && sy>-cellSize && sy<viewH+cellSize;
+    if (onScreen){
+      const rad = cellSize*(0.8 + 2.4*intensity);
+      const g = ctx.createRadialGradient(sx,sy,0, sx,sy,rad);
+      g.addColorStop(0, `rgba(${pink},${0.5*intensity})`);
+      g.addColorStop(1, `rgba(${pink},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
+      if (explored.has(endCell)){
+        // a short post, so the blades read as mounted rather than floating
+        ctx.strokeStyle = `rgba(4,6,9,0.55)`; ctx.lineWidth = Math.max(2, cellSize*0.055);
+        ctx.beginPath(); ctx.moveTo(sx, sy+cellSize*0.06); ctx.lineTo(sx, sy+cellSize*0.34); ctx.stroke();
+        const nVanes = 4;
+        const filled = open ? nVanes : Math.max(0, Math.min(nVanes, Math.round(nVanes * (emberGot/Math.max(1,emberNeed)))));
+        const spin = open ? t/240 : 0;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(spin);
+        // a wedge disc with a scalloped rim, matching the vane pickup — four quadrant
+        // slices instead of eight, sharing one vertex list with the rim (see the note on
+        // the vane pickup: separate beginPath() calls per wedge were wiping the rim path
+        // before it got stroked, so only the last wedge ever showed an outline).
+        const r = cellSize*(0.24+0.07*intensity), bump = cellSize*0.045, n = 16, perW = n/nVanes;
+        const outline = Math.max(2.4, cellSize*0.05);
+        const pts = [];
+        for (let k=0;k<n;k++){
+          const a = (k/n)*Math.PI*2;
+          const rr = r + (k%2 ? bump : -bump*0.4);
+          pts.push([Math.cos(a)*rr, Math.sin(a)*rr]);
+        }
+        for (let w=0; w<nVanes; w++){
+          ctx.beginPath(); ctx.moveTo(0,0);
+          for (let s=0; s<=perW; s++){ const p = pts[(w*perW+s) % n]; ctx.lineTo(p[0], p[1]); }
+          ctx.closePath();
+          if (w < filled) ctx.fillStyle = w%2 ? `rgba(${pink},${0.6+0.35*intensity})` : `rgba(${T.coreRGB},${0.6+0.35*intensity})`;
+          else ctx.fillStyle = `rgba(${pink},0.12)`;
+          ctx.fill();
+        }
+        ctx.beginPath();
+        pts.forEach((p,idx)=>{ if (idx===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+        ctx.closePath();
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = `rgba(4,6,9,${0.7*intensity})`; ctx.lineWidth = outline;
+        ctx.stroke();
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(sx,sy, cellSize*(open?0.14:0.10), 0, 7);
+        ctx.fillStyle = open ? getVar('--beacon') : `rgba(${T.coreRGB},0.9)`; ctx.fill();
+        ctx.strokeStyle = `rgba(4,6,9,0.7)`; ctx.lineWidth = outline*0.85; ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.1*intensity+2,0,7);
+        ctx.fillStyle=`rgba(${pink},${0.6*intensity})`; ctx.fill();
+      }
+    } else {
+      // edge compass: which way the windmill is
+      const ccx=viewW/2, ccy=viewH/2, dx=sx-ccx, dy=sy-ccy, m=24;
+      const tx = dx!==0 ? ((dx>0?viewW-m:m)-ccx)/dx : Infinity;
+      const ty = dy!==0 ? ((dy>0?viewH-m:m)-ccy)/dy : Infinity;
+      const tt = Math.min(Math.abs(tx),Math.abs(ty));
+      const ex=ccx+dx*tt, ey=ccy+dy*tt, ang=Math.atan2(dy,dx);
+      ctx.save(); ctx.translate(ex,ey); ctx.rotate(ang);
+      ctx.globalAlpha = (open ? 0.3 : 0.18) + 0.5*intensity; ctx.fillStyle = getVar('--beacon');
+      ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-5,-5); ctx.lineTo(-5,5); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; ctx.restore();
+    }
+  }
+
   function gardenActors(t){
     if (explored.has(startCell)) drawMarker(startCell, '#f4ecd8', false, t);
-    drawBeacon(t);
-    drawEmbers(t);
-    drawFlames(t);
+    drawWindmill(t);
+    drawVanes(t);
+    drawGusts(t);
     drawBlooms();
     // The baked path stops at the last cell you committed to. This is the stub out to
     // where you actually are, and the light you are carrying at the end of it.
@@ -2519,8 +2966,141 @@
     board:'#83a058', boardEdge:'rgba(58,78,36,.5)', slot:'rgba(40,44,26,.5)',
     face:'#bd8749', back:'#dcbc8e', core:'#f0e2c2', edge:'#8a5f2c',
     shadow:'rgba(58,40,18,', flute:'rgba(112,78,34,.6)',
+    wallBase:'#5B3A15', wallLiner:'#BB8E51',            // the custom corrugated wall art
     yarnDark:'#9e3a26', yarn:'#c94f36', yarnLit:'#e08068',
   };
+  // The wall's cross-section, lifted from the user's own wall.svg (125x22 viewBox, v2):
+  // a dark base the full thickness of the wall, a liner band top and bottom, a single
+  // continuous flute wave between them, and a solid liner cap at any exposed cut end.
+  // Constants below are the exact control points from that SVG's one clean repeat (the
+  // cycle from x=59.7736 to x=77.4064), kept relative to the strip's own centreline —
+  // top and bottom are not quite symmetric in the source art, so they're tracked
+  // separately rather than as one shared amplitude — and re-scaled by
+  // k = actualThickness/20.6401 so it holds its proportions at any cell size.
+  const WALL_SVG = {
+    thick: 20.6401, band: 3, stroke: 2, capW: 3.468,
+    period: 17.6328,
+    topAmp: -5.01422, topCtrl: -6.63338, botAmp: 4.86135, botCtrl: 7.29005,
+    ctrl1X: 0.6916, ctrl2X: 2.9868, capEndX: 3.6785,
+    troughX: 7.8968, ctrl3X: 8.9342, ctrl4X: 12.3771, cap2EndX: 13.4145,
+  };
+  // Two independently-drawn wall segments that happen to be collinear (any straight
+  // run longer than one cell) used to each restart the wave's phase at their own local
+  // 0 — which made the curve jump and double back on itself at every cell boundary.
+  // Anchoring the phase to the segment's absolute world position instead means any two
+  // collinear segments land on the exact same curve, so drawing them independently
+  // still reads as one continuous wave with no seam.
+  // The phase has to key off the wall's position in the *world*, not its position in
+  // whatever buffer it happens to be drawn into. Wall segments are baked in coordinates
+  // local to the bake tile (`c*cellSize - ox`), and that tile's origin moves whenever the
+  // camera pans or the fog re-bakes — so keying off the local x/y re-seeded the wave
+  // against a moving datum and the flutes crawled along the wall as the map opened up.
+  // wox/woy convert back to absolute world position, which never moves.
+  function wallFlutePhaseStart(x1, y1, ux, uy, period, wox, woy){
+    const horiz = Math.abs(ux) >= Math.abs(uy);
+    const axisPos = (horiz ? x1 + (wox||0) : y1 + (woy||0));
+    const axisDir = horiz ? ux : uy;
+    const base = (((-axisDir*axisPos) % period) + period) % period;
+    return base - period;   // one period of lead-in, so there's always a full curve to clip against
+  }
+  function wallFluteSegment(g, x1, y1, x2, y2, thick, wox, woy){
+    const S = WALL_SVG, k = thick / S.thick;
+    const len = Math.hypot(x2-x1, y2-y1); if (len < 1) return;
+    const ux = (x2-x1)/len, uy = (y2-y1)/len, nx = -uy, ny = ux;
+    const pt = (d, off) => [x1+ux*d+nx*off, y1+uy*d+ny*off];
+    const period = S.period*k;
+    const topAmp=S.topAmp*k, topCtrl=S.topCtrl*k, botAmp=S.botAmp*k, botCtrl=S.botCtrl*k;
+    let first = true;
+    for (let d0 = wallFlutePhaseStart(x1,y1,ux,uy,period,wox,woy); d0 < len+period; d0 += period){
+      const p0 = pt(d0, topAmp);
+      if (first){ g.moveTo(p0[0], p0[1]); first = false; }
+      const c1 = pt(d0+S.ctrl1X*k, topCtrl), c2 = pt(d0+S.ctrl2X*k, topCtrl), p1 = pt(d0+S.capEndX*k, topAmp);
+      g.bezierCurveTo(c1[0],c1[1], c2[0],c2[1], p1[0],p1[1]);
+      const p2 = pt(d0+S.troughX*k, botAmp);
+      g.lineTo(p2[0], p2[1]);
+      const c3 = pt(d0+S.ctrl3X*k, botCtrl), c4 = pt(d0+S.ctrl4X*k, botCtrl), p3 = pt(d0+S.cap2EndX*k, botAmp);
+      g.bezierCurveTo(c3[0],c3[1], c4[0],c4[1], p3[0],p3[1]);
+      const p4 = pt(d0+period, topAmp);
+      g.lineTo(p4[0], p4[1]);
+    }
+  }
+  /* ---- the yarn's twist ----------------------------------------------------------
+     The strand's body is stroked as a midpoint-smoothed curve, but the twist marks
+     used to be spaced along the raw corner points instead. Wherever the path bends the
+     curve cuts the corner and the raw polyline does not, so near every turn the marks
+     were laid across ground the strand had already curved away from — which is what
+     made them spill outside it.
+
+     Two things fix it. `yarnSamples` walks the exact same smoothed curve the body is
+     stroked from, so a mark is always square to the strand it sits on; and the marks
+     are composited with 'source-atop' into a scratch layer holding just the strand, so
+     even on the tightest bend a mark is cut off at the strand's edge rather than
+     hanging over it. Because containment is guaranteed, the marks can run the full
+     width edge to edge and read as a real ply instead of a short centred tick.
+     ------------------------------------------------------------------------------ */
+  function yarnSamples(P, per){
+    if (P.length < 2) return P.slice();
+    const out = [{ x:P[0].x, y:P[0].y }];
+    let cur = out[0];
+    for (let i=1; i<P.length-1; i++){
+      const m = { x:(P[i].x+P[i+1].x)/2, y:(P[i].y+P[i+1].y)/2 };
+      for (let s=1; s<=per; s++){
+        const u = s/per, iu = 1-u;
+        out.push({ x: iu*iu*cur.x + 2*iu*u*P[i].x + u*u*m.x,
+                   y: iu*iu*cur.y + 2*iu*u*P[i].y + u*u*m.y });
+      }
+      cur = m;
+    }
+    out.push({ x:P[P.length-1].x, y:P[P.length-1].y });
+    return out;
+  }
+  // the ply marks: slanted chords at an even arc-length spacing along the strand
+  function yarnTwistPath(g, S, cs){
+    const half = cs*0.086, slant = cs*0.052, step = cs*0.132;
+    g.beginPath();
+    let dist = 0, next = step*0.5;
+    for (let i=1; i<S.length; i++){
+      const x1=S[i-1].x, y1=S[i-1].y, x2=S[i].x, y2=S[i].y;
+      const segLen = Math.hypot(x2-x1, y2-y1);
+      if (segLen < 1e-6) continue;
+      const ux=(x2-x1)/segLen, uy=(y2-y1)/segLen, nx=-uy, ny=ux;
+      while (next <= dist + segLen){
+        const d = next - dist, bx = x1+ux*d, by = y1+uy*d;
+        g.moveTo(bx - nx*half - ux*slant, by - ny*half - uy*slant);
+        g.lineTo(bx + nx*half + ux*slant, by + ny*half + uy*slant);
+        next += step;
+      }
+      dist += segLen;
+    }
+  }
+  let yarnCv = null;
+  function yarnLayer(w, h, scale){
+    if (!yarnCv) yarnCv = document.createElement('canvas');
+    const pw = Math.max(1, Math.round(w*scale)), ph = Math.max(1, Math.round(h*scale));
+    if (yarnCv.width !== pw || yarnCv.height !== ph){ yarnCv.width = pw; yarnCv.height = ph; }
+    const c = yarnCv.getContext('2d');
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    c.clearRect(0, 0, w, h);
+    return c;
+  }
+  // strand core + ply, built in the scratch layer and stamped down in one piece
+  function yarnBodyAndTwist(g, pts, cs, w, h, scale, strokeCore){
+    const c = yarnLayer(w, h, scale);
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    c.strokeStyle = CARD.yarn; c.lineWidth = cs*0.155;
+    strokeCore(c);
+    c.globalCompositeOperation = 'source-atop';
+    c.strokeStyle = CARD.yarnLit; c.lineWidth = Math.max(1, cs*0.052); c.lineCap = 'butt';
+    yarnTwistPath(c, yarnSamples(pts, 8), cs); c.stroke();
+    // a thinner shadow ply just behind each lit one, so the twist has a near and far side
+    c.strokeStyle = 'rgba(120,40,22,.34)'; c.lineWidth = Math.max(1, cs*0.030);
+    c.save(); c.translate(cs*0.030, cs*0.030);
+    yarnTwistPath(c, yarnSamples(pts, 8), cs); c.stroke();
+    c.restore();
+    c.globalCompositeOperation = 'source-over';
+    g.drawImage(yarnCv, 0, 0, w, h);
+  }
+
   const CARD_TURN = 380;                   // ms for one flap to go from shut to gone
   const cardPats = {}, cardTileCv = {};
   // One 256px tile per stock face. Every fibre is drawn at all nine wrap offsets so
@@ -2647,6 +3227,178 @@
     if (moving.length) cardFlaps(ctx, camX, camY, moving);
   }
 
+  /* ---- the corrugated wall ---------------------------------------------------
+     Shared by the live board and the world-select card, so the card cannot drift
+     out of step with the game the way it did while this lived inline in bakeCard.
+     segs are pairs of endpoints already deduplicated by the caller; cs is the cell
+     size, k the caller's relief unit, and wox/woy the offset back to world space
+     that keeps the flute phase from crawling as the view moves.
+     -------------------------------------------------------------------------- */
+  function drawCardWalls(g, segs, cs, k, wox, woy){
+    if (!segs.length) return;
+    const thick = Math.max(4, cs*0.33);
+    const sk = thick / WALL_SVG.thick, bandH = WALL_SVG.band*sk, halfT = thick/2;
+    // For every endpoint, which axes (horizontal / vertical) of wall touch it. A long
+    // straight run is built from one segment per cell, so *every* cell boundary along
+    // it shares an endpoint with its neighbour too — but both sides are the same
+    // axis, so the wave and bands should run straight through with no trim at all
+    // (the world-anchored phase already makes that seamless). Only an endpoint where
+    // both a horizontal *and* a vertical segment meet — an actual corner or T-join —
+    // needs the trim; treating every shared endpoint the same way was cutting a small
+    // gap out of every plain straight run, not just real corners, which is the "space
+    // in between" the wave lines shouldn't have had.
+    const capKey = (x,y) => Math.round(x*4)+','+Math.round(y*4);
+    const capCount = new Map(), capAxes = new Map();
+    for (let n=0;n<segs.length;n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+      [[x1,y1],[x2,y2]].forEach(([px,py]) => {
+        const kk = capKey(px,py);
+        capCount.set(kk, (capCount.get(kk)||0)+1);
+        if (!capAxes.has(kk)) capAxes.set(kk, new Set());
+        capAxes.get(kk).add(axis);
+      });
+    }
+    const isJunction = (x,y) => (capAxes.get(capKey(x,y))||0).size > 1;
+    const isDeadEnd = (x,y) => capCount.get(capKey(x,y)) === 1;
+
+    // `square` line caps extend the stroke half its own width past each endpoint. At a
+    // corner that's exactly what's wanted — it's what fills the notch where two walls
+    // meet. At an exposed end there's nothing to fill, so the dark base was spilling
+    // half a wall-thickness past where the wall actually stops, well beyond the much
+    // shorter end cap. Pulling a dead end's endpoint back by halfT means the square
+    // cap lands precisely on the true end instead of past it.
+    // a trim can never eat more than the segment it's trimming — at a very small cell
+    // size a wall is short enough that two dead-end trims would otherwise cross over
+    // and flip the segment back on itself
+    const fitTrim = (st, et, len) => {
+      const total = st + et;
+      if (total <= len*0.9) return [st, et];
+      const f = (len*0.9) / (total || 1);
+      return [st*f, et*f];
+    };
+    const line = (lw, col, dx, dy) => {
+      g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'square'; g.lineJoin = 'round';
+      g.beginPath();
+      for (let n=0;n<segs.length;n+=4){
+        const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+        const len = Math.hypot(x2-x1,y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
+        const [st, et] = fitTrim(isDeadEnd(x1,y1) ? halfT : 0, isDeadEnd(x2,y2) ? halfT : 0, len);
+        g.moveTo(x1+ux*st+dx, y1+uy*st+dy); g.lineTo(x2-ux*et+dx, y2-uy*et+dy);
+      }
+      g.stroke();
+    };
+    // same throw as the other two worlds' walls: a steep, mostly-vertical offset of
+    // (1.5,4.5) in units of cellSize/42, not the flatter/inconsistent angle this used
+    // to have. wk is scoped to just this relief, separate from the card's own `k`
+    // (cellSize/30) that everything else on the board still uses.
+    const wk = cs/42;
+    line(thick, CARD.slot, 0.5*wk, 1.5*wk);                  // the slot it stands in
+    g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
+    line(thick, CARD.shadow + '1)', 1.5*wk, 4.5*wk); g.restore();
+    line(thick, CARD.wallBase, 0, 0);                        // the wall's own custom art
+    // At a corner or T-join the two walls share a `thick` x `thick` hub square. Trimming
+    // both sides back from it left that square carrying only the plain dark base — the
+    // blank corners. So the horizontal wall now *claims* the hub: a horizontal segment
+    // pushes its band and wave a half-thickness out past the junction, carrying the
+    // pattern straight across, and the vertical segment meeting it pulls back by the
+    // same amount and yields. Negative = reach outward, positive = pull inward.
+    const endShift = (x, y, axis, lw) => {
+      if (isJunction(x,y)) return axis === 'h' ? -halfT : halfT;
+      return isDeadEnd(x,y) ? lw/2 : 0;
+    };
+    // only inward pulls can run past each other on a short wall, so clamp just those
+    const shiftPair = (sd, ed, len) => {
+      const [cs_, ce_] = fitTrim(Math.max(0,sd), Math.max(0,ed), len);
+      return [sd > 0 ? cs_ : sd, ed > 0 ? ce_ : ed];
+    };
+
+    // the liner bands: they run across a corner with the horizontal wall, and are
+    // pulled back half their own width at a dead end so their square caps don't hang
+    // past the wall's flush end the way the base's did
+    const offsetLine = (lw, col, offset) => {
+      g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'square'; g.lineJoin = 'round';
+      g.beginPath();
+      for (let n=0;n<segs.length;n+=4){
+        const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+        const len = Math.hypot(x2-x1,y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len, nx=-uy, ny=ux;
+        const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+        const [sd, ed] = shiftPair(endShift(x1,y1,axis,lw), endShift(x2,y2,axis,lw), len);
+        const cx1=x1+ux*sd, cy1=y1+uy*sd, cx2=x2-ux*ed, cy2=y2-uy*ed;
+        g.moveTo(cx1+nx*offset, cy1+ny*offset); g.lineTo(cx2+nx*offset, cy2+ny*offset);
+      }
+      g.stroke();
+    };
+    offsetLine(bandH, CARD.wallLiner, -halfT + bandH/2);     // top liner
+    offsetLine(bandH, CARD.wallLiner,  halfT - bandH/2);     // bottom liner
+
+    // the flute wave, one segment at a time, each clipped to its own strip of wall —
+    // the phase is anchored to world position (see wallFlutePhaseStart) so adjacent
+    // collinear segments line up seamlessly with no trim needed, and two horizontals
+    // overlapping in a hub draw the identical curve there. At a junction the clip
+    // reaches out over the hub for a horizontal and pulls back for a vertical, so the
+    // wave carries across the corner instead of stopping at its edge.
+    g.strokeStyle = CARD.wallLiner; g.lineWidth = WALL_SVG.stroke*sk;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let n=0;n<segs.length;n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const len = Math.hypot(x2-x1,y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
+      const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+      const [sd, ed] = shiftPair(endShift(x1,y1,axis,0), endShift(x2,y2,axis,0), len);
+      const cx1 = x1+ux*sd, cy1 = y1+uy*sd;
+      const cx2 = x2-ux*ed, cy2 = y2-uy*ed;
+      g.save();
+      g.beginPath();
+      if (axis === 'h') g.rect(Math.min(cx1,cx2), y1-halfT, Math.abs(cx2-cx1), thick);
+      else g.rect(x1-halfT, Math.min(cy1,cy2), thick, Math.abs(cy2-cy1));
+      g.clip();
+      g.beginPath();
+      wallFluteSegment(g, x1, y1, x2, y2, thick, wox, woy);   // ox/oy re-anchor the phase to the world
+      g.stroke();
+      g.restore();
+    }
+    // A solid cap — the same colour as the sides — at any end that isn't shared with
+    // another wall segment at all (capCount===1): a true dead end, an exposed cut edge.
+    // The cap sits *inside* the wall's own footprint (it grows inward from the end,
+    // not out past it), so the wall's outer boundary is one flush edge: dark base,
+    // cap, and closing line all stop at exactly the same place.
+    const capW = WALL_SVG.capW*sk;
+    const tipLines = [];   // the straight closing line right at each cap's outer edge
+    g.fillStyle = CARD.wallLiner;
+    g.beginPath();
+    for (let n=0;n<segs.length;n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const len = Math.hypot(x2-x1,y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len, nx=-uy, ny=ux;
+      // dx,dy points inward along the wall from this end
+      const addCap = (px,py,dx,dy) => {
+        g.moveTo(px-nx*halfT, py-ny*halfT);
+        g.lineTo(px+nx*halfT, py+ny*halfT);
+        g.lineTo(px+dx*capW+nx*halfT, py+dy*capW+ny*halfT);
+        g.lineTo(px+dx*capW-nx*halfT, py+dy*capW-ny*halfT);
+        g.closePath();
+        tipLines.push(px-nx*halfT, py-ny*halfT, px+nx*halfT, py+ny*halfT, dx, dy);
+      };
+      if (isDeadEnd(x1,y1)) addCap(x1,y1,  ux,  uy);   // start end: inward is +u
+      if (isDeadEnd(x2,y2)) addCap(x2,y2, -ux, -uy);   // far end: inward is -u
+    }
+    g.fill();
+    // a crisp line right at the very tip of every capped end, so it reads as a
+    // deliberate closing edge rather than the fill just trailing off. A stroke straddles
+    // its own path, so it's nudged half a line-width inward — otherwise that half would
+    // hang past the wall's end, which is the overhang this whole pass is removing.
+    if (tipLines.length){
+      const tw = Math.max(1.4, sk*1.4);
+      g.strokeStyle = CARD.wallLiner; g.lineWidth = tw; g.lineCap = 'butt';
+      g.beginPath();
+      for (let n=0;n<tipLines.length;n+=6){
+        const ix = tipLines[n+4]*tw/2, iy = tipLines[n+5]*tw/2;
+        g.moveTo(tipLines[n]+ix, tipLines[n+1]+iy);
+        g.lineTo(tipLines[n+2]+ix, tipLines[n+3]+iy);
+      }
+      g.stroke();
+    }
+  }
+
   // the table, the board, the walls, and every flap still lying shut
   function bakeCard(g, ox, oy, w, h){
     const k = cellSize/30;
@@ -2670,8 +3422,17 @@
     g.strokeStyle = CARD.boardEdge; g.lineWidth = 1.4; g.strokeRect(bx, by, bw, bh);
 
     // walls: a strip of board standing in a slot, shown only where the ground either
-    // side of it has been reached
-    const segs = [];
+    // side of it has been reached. `known()` is checked from both of a shared wall's
+    // cells independently, and since it's a symmetric OR (this cell lit, or its
+    // neighbour is), both sides agree and both push the same wall — so every interior
+    // wall (and every wall bordering the lit area, which is most of them, including
+    // real fog-frontier tips) went into `segs` twice with identical coordinates. That
+    // silently inflated every endpoint's tally by one or more, which meant a genuine
+    // dead end's count was never actually 1 — end caps were wired up correctly but the
+    // condition that triggers them could never fire. Deduplicating by the wall's own
+    // canonical (order-independent) endpoints fixes this at the source, before any of
+    // the corner/dead-end logic below ever sees it.
+    const rawSegs = [];
     for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
       const i = idx(c,r), wl = cells[i].walls;
       const x = c*cellSize - ox, y = r*cellSize - oy, s = cellSize;
@@ -2680,38 +3441,22 @@
         const nc = c+dc, nr = r+dr;
         return nc>=0 && nc<cols && nr>=0 && nr<rows && brightnessOf(idx(nc,nr)) > 0;
       };
-      if (wl[0] && known(0,-1)) segs.push(x, y, x+s, y);
-      if (wl[3] && known(-1,0)) segs.push(x, y, x, y+s);
-      if (wl[1] && known(1,0))  segs.push(x+s, y, x+s, y+s);
-      if (wl[2] && known(0,1))  segs.push(x, y+s, x+s, y+s);
+      if (wl[0] && known(0,-1)) rawSegs.push(x, y, x+s, y);
+      if (wl[3] && known(-1,0)) rawSegs.push(x, y, x, y+s);
+      if (wl[1] && known(1,0))  rawSegs.push(x+s, y, x+s, y+s);
+      if (wl[2] && known(0,1))  rawSegs.push(x, y+s, x+s, y+s);
     }
-    if (segs.length){
-      const thick = Math.max(5, cellSize*0.33);
-      const line = (lw, col, dx, dy) => {
-        g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'butt'; g.lineJoin = 'round';
-        g.beginPath();
-        for (let n=0;n<segs.length;n+=4){ g.moveTo(segs[n]+dx, segs[n+1]+dy); g.lineTo(segs[n+2]+dx, segs[n+3]+dy); }
-        g.stroke();
-      };
-      line(thick, CARD.slot, 0.4*k, 3.4*k);                    // the slot it stands in
-      g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
-      line(thick, CARD.shadow + '1)', 4*k, 5.4*k); g.restore();
-      line(thick, cardAnchor(cardTile('face'), ox, oy), 0, 0);  // the face of the card
-      // flutes, on the cut edge only
-      g.strokeStyle = CARD.flute; g.lineWidth = 1;
-      const half = thick*0.30;
-      g.beginPath();
-      for (let n=0;n<segs.length;n+=4){
-        const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
-        const len = Math.hypot(x2-x1, y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
-        const nx=-uy*half, ny=ux*half;
-        for (let d=2; d<len; d+=3.6){          // fixed pitch: the flutes are the board's,
-          const fx=x1+ux*d, fy=y1+uy*d;        // not the camera's
-          g.moveTo(fx-nx, fy-ny); g.lineTo(fx+nx, fy+ny);
-        }
-      }
-      g.stroke();
+    const segMap = new Map();
+    for (let n=0;n<rawSegs.length;n+=4){
+      const x1=rawSegs[n],y1=rawSegs[n+1],x2=rawSegs[n+2],y2=rawSegs[n+3];
+      const a=[Math.round(x1*4),Math.round(y1*4)], b=[Math.round(x2*4),Math.round(y2*4)];
+      const [p,q] = (a[0]<b[0] || (a[0]===b[0] && a[1]<b[1])) ? [a,b] : [b,a];
+      segMap.set(p[0]+','+p[1]+','+q[0]+','+q[1], [x1,y1,x2,y2]);
     }
+    const segs = [];
+    segMap.forEach(s => segs.push(s[0],s[1],s[2],s[3]));
+    drawCardWalls(g, segs, cellSize, k, ox, oy);
+
 
     // every flap still shut. They all carry the same blur, so one accumulated path
     // gives the whole field its shadow for a single filter pass.
@@ -2736,32 +3481,104 @@
     g.strokeStyle = 'rgba(255,255,255,.34)'; each(0, -0.9*k); g.stroke();
   }
 
-  // the few mid-turn, drawn live over the baked field
+  // The few mid-turn, drawn live over the baked field. A flap opens like a pair of
+  // shutters: it splits down the middle and each leaf swings out on its own outer
+  // hinge, so the ground appears from the centre first rather than sweeping in from
+  // one side. At rest the two leaves meet exactly and read as one square, which is why
+  // the baked shut layer above needs no knowledge of any of this.
+  //
+  // Each leaf's path is built inside a rotated frame but filled outside it, so the
+  // stock's fibre and every drop shadow stay in screen space — the light keeps coming
+  // from one direction even for the flaps whose split runs the other way.
   function cardFlaps(g, ox, oy, moving){
     const k = cellSize/30;
-    for (const i of moving){
-      const c = cx(i), r = cy(i), o = flapOpen[i];
+    for (const i of moving) shutterFlap(g, cx(i), cy(i), ox, oy, flapOpen[i], k);
+  }
+  // one flap mid-turn — shared with the world-select card, which shows a single flap
+  // caught partway so the card advertises what the world does
+  function shutterFlap(g, c, r, ox, oy, o, k){
+    {
       const fade = o < 0.78 ? 1 : Math.max(0, (1 - o)/0.22);
-      const lift = o * 7 * k;
-      g.save();
-      g.globalAlpha = 0.42 * (1 - o*0.25) * fade;
-      g.shadowColor = CARD.shadow + '.9)';
-      g.shadowBlur = (1.4 + o*5) * k;
-      g.fillStyle = CARD.shadow + '1)';
-      g.beginPath(); flapPath(g, c, r, ox, oy, o, 1.2*k + lift*0.9, 1.8*k + lift*1.15);
-      g.fill(); g.restore();
+      if (fade <= 0.01) return;
+      const size = cellSize - cellSize*0.06;
+      const x = c*cellSize - ox + cellSize*0.03;
+      const y = r*cellSize - oy + cellSize*0.03;
+      const mx = c*cellSize - ox + cellSize/2, my = r*cellSize - oy + cellSize/2;
+      const hinge = (Math.abs(hash(c*3.1 + r*5.7, 2))*4) | 0;
+      const across = (hinge === 1 || hinge === 3);      // which way this one splits
+      const ang = (hash(c*2.7 + r*4.1, 9)*2 - 1)*0.016 + (across ? Math.PI/2 : 0);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      const tp = (px, py) => [ mx + (px-mx)*ca - (py-my)*sa, my + (px-mx)*sa + (py-my)*ca ];
 
-      g.save(); g.globalAlpha = fade;
-      g.beginPath();
-      const depth = flapPath(g, c, r, ox, oy, o, 0, -lift*0.5);
-      g.fillStyle = cardAnchor(cardTile(depth >= 0 ? 'face' : 'back'), ox, oy);
-      g.fill();
-      g.strokeStyle = CARD.edge; g.lineWidth = 1; g.stroke();
-      if (depth >= 0){                                // a contact line while it still touches
-        g.strokeStyle = 'rgba(255,255,255,.34)'; g.lineWidth = 1;
-        g.beginPath(); flapPath(g, c, r, ox, oy, o, 0, -lift*0.5 - 0.9*k); g.stroke();
+      const half = size/2, bow = o*cellSize*0.05;
+      const depth = half * Math.cos(o * Math.PI * 0.60);
+      const sg = Math.sign(depth) || 1, dd = Math.abs(depth);
+      const inset = (1 - dd/half) * (size*0.055);
+
+      // one leaf, hinged on its outer edge; dir points from that hinge toward the split
+      const leafPath = (hx, dir, ddx, ddy) => {
+        const fx = hx + dir*sg*dd, oxx = ddx||0, oyy = ddy||0;
+        const P = (px,py) => { const q = tp(px,py); return [q[0]+oxx, q[1]+oyy]; };
+        const a = P(hx, y), b = P(fx, y+inset);
+        const cq = P(fx + dir*bow, y+size/2), d2 = P(fx, y+size-inset), e = P(hx, y+size);
+        g.moveTo(a[0], a[1]);
+        g.lineTo(b[0], b[1]);
+        g.quadraticCurveTo(cq[0], cq[1], d2[0], d2[1]);
+        g.lineTo(e[0], e[1]);
+        g.closePath();
+      };
+
+      // the cut down the middle, as a dark recess under the leaves: shadow hugging each
+      // inner edge and easing off between them, lifting as real ground takes over
+      const gapL = depth > 0 ? x + dd : x;
+      const gapR = depth > 0 ? x + size - dd : x + size;
+      if (gapR - gapL > 0.4){
+        const g0 = tp(gapL, y+size/2), g1 = tp(gapR, y+size/2);
+        const sh = g.createLinearGradient(g0[0], g0[1], g1[0], g1[1]);
+        sh.addColorStop(0,   'rgba(40,26,10,.78)');
+        sh.addColorStop(0.5, 'rgba(40,26,10,.34)');
+        sh.addColorStop(1,   'rgba(40,26,10,.78)');
+        const q0 = tp(gapL, y), q1 = tp(gapR, y), q2 = tp(gapR, y+size), q3 = tp(gapL, y+size);
+        g.save();
+        g.globalAlpha = fade * Math.max(0, 1 - o*0.75);
+        g.fillStyle = sh;
+        g.beginPath();
+        g.moveTo(q0[0],q0[1]); g.lineTo(q1[0],q1[1]); g.lineTo(q2[0],q2[1]); g.lineTo(q3[0],q3[1]);
+        g.closePath(); g.fill();
+        g.restore();
       }
-      g.restore();
+
+      const stock = cardAnchor(cardTile(depth >= 0 ? 'face' : 'back'), ox, oy);
+      [[x, 1], [x+size, -1]].forEach(([hx, dir]) => {
+        g.save();
+        g.globalAlpha = 0.42 * (1 - o*0.25) * fade;
+        g.shadowColor = CARD.shadow + '.9)';
+        g.shadowBlur = (1.4 + o*5) * k;
+        g.fillStyle = CARD.shadow + '1)';
+        g.beginPath(); leafPath(hx, dir, 1.2*k + o*2.4*k, 1.8*k + o*3.0*k);
+        g.fill(); g.restore();
+
+        g.save(); g.globalAlpha = fade;
+        g.beginPath(); leafPath(hx, dir, 0, 0);
+        g.fillStyle = stock; g.fill();
+        g.strokeStyle = CARD.edge; g.lineWidth = 1; g.stroke();
+        if (depth >= 0){                              // a contact line while it still touches
+          g.strokeStyle = 'rgba(255,255,255,.34)'; g.lineWidth = 1;
+          g.beginPath(); leafPath(hx, dir, 0, -0.9*k); g.stroke();
+        }
+        g.restore();
+      });
+
+      // while it is all but shut, a fine dark score down the centre, so a closed flap
+      // already shows where it is going to part
+      if (o < 0.14){
+        const s0 = tp(x+half, y), s1 = tp(x+half, y+size);
+        g.save(); g.globalAlpha = fade;
+        g.strokeStyle = 'rgba(48,32,14,' + (0.55*(1 - o/0.14)).toFixed(3) + ')';
+        g.lineWidth = Math.max(1, cellSize*0.022);
+        g.beginPath(); g.moveTo(s0[0],s0[1]); g.lineTo(s1[0],s1[1]); g.stroke();
+        g.restore();
+      }
     }
   }
 
@@ -2781,22 +3598,19 @@
       ctx.shadowColor = CARD.shadow + '.45)'; ctx.shadowBlur = cellSize*0.10; ctx.shadowOffsetY = cellSize*0.05;
       ctx.strokeStyle = CARD.yarnDark; ctx.lineWidth = cellSize*0.20; strokeTrail();
       ctx.restore();
-      ctx.strokeStyle = CARD.yarn; ctx.lineWidth = cellSize*0.155; strokeTrail();
-      // the twist: short strokes across the run, which is what makes it read as wool
-      ctx.strokeStyle = CARD.yarnLit; ctx.lineWidth = Math.max(1, cellSize*0.05);
-      const pts = threadPoints();
-      ctx.beginPath();
-      for (let i=1; i<pts.length; i++){
-        const x1=pts[i-1].x, y1=pts[i-1].y, x2=pts[i].x, y2=pts[i].y;
-        const len = Math.hypot(x2-x1, y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
-        const nx=-uy*cellSize*0.067, ny=ux*cellSize*0.067;
-        const sx=ux*cellSize*0.047, sy=uy*cellSize*0.047;
-        for (let d=0; d<len; d+=cellSize*0.147){
-          const bx=x1+ux*d, by=y1+uy*d;
-          ctx.moveTo(bx-nx-sx, by-ny-sy); ctx.lineTo(bx+nx+sx, by+ny+sy);
+      // core + twist together, so the ply is cut to the strand instead of overhanging it
+      yarnBodyAndTwist(ctx, threadPoints(), cellSize, viewW, viewH, dpr, (c) => {
+        const pts = threadPoints();
+        if (pts.length < 2) return;
+        c.beginPath();
+        c.moveTo(pts[0].x, pts[0].y);
+        for (let i=1;i<pts.length-1;i++){
+          const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+          c.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
         }
-      }
-      ctx.stroke();
+        c.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+        c.stroke();
+      });
     }
     const hx = tipX - camX, hy = tipY - camY;
     ctx.save();
@@ -2990,12 +3804,14 @@
   function updateHud(){
     const open = exitOpen();
     elEmbers.textContent = open ? `${emberNeed}/${emberNeed}` : `${Math.min(emberGot,emberNeed)}/${emberNeed}`;
-    elEmbers.parentElement.style.color = open ? T.beacon : '';
-    elEmbers.previousElementSibling && (elEmbers.previousElementSibling.style.background = open ? T.beacon : '');
+    // the "way is open" tint, taken down the same way the mark is so it reads on the
+    // light bar rather than glowing off it
+    const beaconInk = `rgb(${toRGB(T.beacon).map(c => Math.round(c*0.46)).join(',')})`;
+    elEmbers.parentElement.style.color = open ? beaconInk : '';
+    if (elGoalIcon) elGoalIcon.classList.toggle('lit', open);
     elLightFill.style.width = Math.round(light*100) + '%';
     const low = light < CRIT && !won;
     elTrack.classList.toggle('low', low);
-    elLantern.classList.toggle('low', low);
     elLightFill.style.background = low
       ? 'linear-gradient(90deg,#ff4d33,#ff8a5a)'                         // warning red when fading
       : `linear-gradient(90deg,${T.thread},${T.core})`;
@@ -3044,7 +3860,7 @@
   window.addEventListener('pointerdown', ()=>Snd.resume(), { once:true, capture:true });
   document.getElementById('next').addEventListener('click', ()=>loadLevel(cur+1 < TOTAL ? cur+1 : cur));
   document.getElementById('tomap').addEventListener('click', openMap);
-  markEl.addEventListener('click', openMap);
+  document.getElementById('back').addEventListener('click', openMap);   // the arrow is the way out now
 
   let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(()=>layout(), 120); });
 
