@@ -22,6 +22,10 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
+  /* one focus ring, everywhere: currentColor picks up whatever ink each button already
+     uses, so it reads correctly on the light chrome (cream panels) and the dark win
+     screen alike without a per-component override. */
+  button:focus-visible{outline:2px solid currentColor;outline-offset:2px;}
   body{
     background:
       radial-gradient(120% 80% at 50% -10%, #12211f 0%, var(--page) 60%);
@@ -111,7 +115,7 @@
      nowrap line, so a longer hint stays on screen on a narrow phone. */
   .hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     background:rgba(10,17,20,.62);backdrop-filter:blur(6px);border:1px solid var(--line);
-    color:var(--ink);font-size:13px;line-height:1.45;padding:10px 16px;border-radius:18px;
+    color:var(--ink);font-size:14px;line-height:1.45;padding:10px 16px;border-radius:18px;
     max-width:min(82%,300px);text-align:center;text-wrap:balance;
     pointer-events:none;transition:opacity .5s;}
   .hint b{color:var(--thread);font-weight:500;}
@@ -125,7 +129,7 @@
   .win h2{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:30px;margin:0;}
   .win p{color:var(--muted);margin:2px 0 18px;font-size:14px;}
   .win .figures{display:flex;gap:26px;margin-bottom:22px;}
-  .win .figures div{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:26px;}
+  .win .figures div{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:21px;}
   .win .figures span{display:block;font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:10px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--muted);margin-top:2px;}
   .btn{border:0;background:var(--thread);color:#241704;font:inherit;font-weight:600;font-size:15px;
@@ -134,15 +138,21 @@
   .win .row{display:flex;gap:10px;}
 
   /* world map */
-  /* Full-bleed now: a card is not an object laid on a page, it is the page. The art
-     runs edge to edge with no frame, no rounded corners, no shadow — the same "print
-     bleeds off the sheet" treatment the level bar uses at the bottom of the game. */
-  .sheet{position:absolute;inset:0;touch-action:pan-x;display:none;flex-direction:column;z-index:9;
-    background:#0f0f0d;overflow:hidden;}
+  /* The page is paper the cards are laid on, not a night sky: the worlds carry the
+     colour now, and a light ground is what lets three very different ones sit side by
+     side without one of them looking like it is lit wrong. */
+  /* No side padding here: the deck runs the full width so a card can sit closer to the
+     edge and the next world still shows past it. What little inset the cards need comes
+     from the deck's own padding, which the shadow can spill into. */
+  .sheet{position:absolute;inset:0;touch-action:pan-y;display:none;flex-direction:column;z-index:9;padding:16px 0;
+    /* No justify-content:center here on purpose — centering an overflowing flex
+       container clips its leading edge in a way you can't scroll back to, and these
+       cards are tall enough now to overflow on shorter screens. Top-aligned with the
+       deck's own padding-block is the safe version of "centered". */
+    background:#faf8f3;overflow-y:auto;overflow-x:hidden;   /* the glow reaches past both edges */
+    padding-top:max(12px,env(safe-area-inset-top));}
   .sheet.show{display:flex;animation:fade .28s ease both;}
-  /* the world's own light, washed behind the deck — mostly hidden now that the art is
-     opaque and full-bleed, but still cheap (a permanently cached tiny blurred bitmap)
-     and still shows for an instant during the cross-fade as a card swipes past. */
+  /* the world's own light, washed across the page behind the cards */
   .mapbg{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none;}
   .deck{position:relative;z-index:1;}
   /* the source sits above the frame — only its falloff is ever on screen, so the light
@@ -152,50 +162,93 @@
     50%    {filter:drop-shadow(0 3px 9px rgba(90,70,44,.30));}
   }
 
-  /* the deck: one card per world, full screen each, swiped sideways and snapped into place */
-  .deck{display:flex;flex:1;min-width:0;min-height:0;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;
+  /* the deck: one card per world, swiped sideways and snapped into place */
+  /* overflow-y has to be hidden for the horizontal scroll to behave, which means the
+     card's drop shadow is clipped at this box's edge — the vertical padding is what
+     gives the shadow somewhere to land instead of being cut off. */
+  .deck{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;min-width:0;touch-action:pan-x;
+    /* The end spacers are margins on the first and last card, not padding on this box.
+       Padding here would shrink the flex content box, and the cards size against that —
+       7% of padding made a "86%" card render at 86% of 86%, sitting off centre. Trailing
+       padding on a horizontal scroller is also dropped from the scrollable area in
+       WebKit and Blink, so the last card could never reach the middle. */
+    padding-block:26px 52px;                /* headroom for the shadow, not dead space */
     scroll-snap-type:x mandatory;scroll-behavior:smooth;
     scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
   .deck::-webkit-scrollbar{display:none;}
+  /* Cards are narrower than the deck so the next world is always half-visible at the
+     edge — that peek is what tells you the deck is a deck. The padding either side is
+     what lets the first and last card still reach the middle when they snap. */
   /* No will-change here. It promotes the card to its own compositing layer sized to the
      card's own box, and the frame's shadow reaches past that box — which is what was
      clipping it. The scale still animates fine without the hint. */
-  .card{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;
-    position:relative;background:none;transition:filter .3s ease;}
+  .card{flex:0 0 76%;scroll-snap-align:center;scroll-snap-stop:always;
+    position:relative;background:none;transition:filter .3s ease;
+    transform-origin:50% 46%;}
+  /* exactly half the leftover width, so the end cards land dead centre like the rest —
+     narrower cards than before means more of each neighbour shows at rest, which is what
+     now carries the "which world am I on" signal that a separate dots row used to.
+     82% only left a ~22px sliver at 0.55 opacity on a 400px phone — technically a peek,
+     but thin and dim enough to read as page margin rather than "another card is here".
+     76%/12% roughly doubles that sliver's width. */
+  .card:first-child{margin-left:12%;}
+  .card:last-child{margin-right:12%;}
   .card.locked{filter:grayscale(.86) brightness(.9);}
   /* A card is a window onto the world, not an illustration of it: the scene inside is
      painted by the same style the levels are, so what you are choosing between is what
      you are about to play. Art on top, a plain foot underneath carrying the name and
      the levels — the foot is the same on every card, the art is the only thing that
-     changes. */
-  .frame{position:absolute;inset:0;overflow:hidden;background:#0f0f0d;}
+     changes. The shadow is tinted with the world's own colour rather than black, so a
+     warm world sits in a warm shadow and does not look pasted onto the page. */
+  /* Height now drives the frame directly instead of being derived from an aspect-ratio
+     against the card's width — aspect-ratio was quietly the tighter constraint before
+     (it maxed out around 625px on a 400px-wide phone, well under the old 660px cap), so
+     cards never actually reached "80% of the viewport" in practice. Dropping it and
+     sizing straight off the viewport height is what actually makes the card taller. */
+  .frame{position:relative;width:100%;height:min(90vh,720px);
+    margin:0 auto;border-radius:22px;overflow:hidden;background:#0f0f0d;
+    box-shadow:0 22px 44px -14px rgba(var(--shd),.50),
+               0 6px 14px -4px rgba(var(--shd),.30),
+               0 1px 2px rgba(var(--shd),.22);}
   /* The art runs the full card. A world you are not on is only its art — the foot is
      parked below the bottom edge and the button is faded out, so the deck reads as
      three places rather than three menus. Both come back as the card lands. */
   .art{position:absolute;inset:0;}
   .scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-x;}
+  /* Fading to opacity:0 hides a card's Play button from view, but the element stays in
+     the tab order — a keyboard user tabbing through the deck would land on an invisible
+     control for a card that isn't showing. visibility:hidden pulls it out of the tab
+     order too; the transition delay lets it stay visible until the fade actually
+     finishes, and come back the instant the fade-in starts. */
   .cmid{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);z-index:2;
     display:flex;flex-direction:column;align-items:center;gap:9px;
-    opacity:0;transition:opacity .26s ease .04s;pointer-events:none;}
-  .card.active .cmid{opacity:1;pointer-events:auto;}
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .26s ease .04s, visibility 0s linear .30s;}
+  .card.active .cmid{opacity:1;visibility:visible;pointer-events:auto;
+    transition:opacity .26s ease .04s, visibility 0s linear;}
 
-  /* The foot: name, then levels, then the world dots. Identical on every card, and only
-     on the active one. It now runs the full width flush against the bottom edge — the
-     same edge-to-edge, square-cornered white bar the level bar uses in game, so the two
-     full-bleed panels in the app read as one consistent piece of furniture. */
-  .cfoot{
-    position:absolute;left:0;right:0;bottom:0;z-index:3;
-    background:#faf8f3;border-radius:0px;
-    padding:16px 16px max(20px,calc(env(safe-area-inset-bottom) + 10px));
-    box-shadow:0 -16px 40px -10px rgba(0,0,0,.22);
+  /* The foot: name, then levels. Identical on every card, and only on the active one.
+     It floats clear of the frame rather than sitting flush in the bottom of it, so it
+     reads as a panel laid on the art instead of a band welded to the card. --fi is the
+     gap it keeps on all three sides; the parked position has to clear that gap too, or
+     a sliver of its top edge would still show above the frame's bottom. */
+  /* Same tab-trap fix as .cmid above: the parked foot panel sits below the visible
+     screen but its .lv and .play buttons remain focusable unless visibility is pulled
+     out too. The delay keeps it visible through the slide-down before hiding, and
+     visible instantly on the way back in. */
+  .cfoot{--fi:12px;
+    position:absolute;left:var(--fi);right:var(--fi);bottom:var(--fi);z-index:3;
+    background:#faf8f3;padding:15px 16px 14px;border-radius:24px;
+    box-shadow:0 8px 22px -8px rgba(16,12,6,.38), 0 1px 3px rgba(16,12,6,.16);
     display:flex;flex-direction:column;align-items:stretch;gap:11px;
-    transform:translateY(100%);
-    transition:transform .40s cubic-bezier(.2,.85,.28,1);}
-  .card.active .cfoot{transform:translateY(0);}
+    transform:translateY(calc(100% + var(--fi)));visibility:hidden;
+    transition:transform .40s cubic-bezier(.2,.85,.28,1), visibility 0s linear .40s;}
+  .card.active .cfoot{transform:translateY(0);visibility:visible;
+    transition:transform .40s cubic-bezier(.2,.85,.28,1), visibility 0s linear;}
   @media (prefers-reduced-motion: reduce){
-    .cfoot{transition:none;}
+    .cfoot, .cmid{transition:none;}
   }
-  .cname{text-align:center;font-size:11px;font-weight:500;letter-spacing:.19em;
+  .cname{text-align:center;font-size:10px;font-weight:500;letter-spacing:.19em;
     text-indent:.19em;text-transform:uppercase;color:#4a4740;line-height:1;}
 
   /* ---- one chrome, every world ---------------------------------------------------
@@ -209,7 +262,7 @@
 
   /* PLAY: the one thing on the card you are meant to hit. Kept white on every world so
      it never has to fight that world's palette — the shadow does the separating. */
-  .play{border:0;cursor:pointer;font-weight:500;font-size:16px;letter-spacing:.13em;
+  .play{border:0;cursor:pointer;font-weight:500;font-size:15px;letter-spacing:.13em;
     text-indent:.13em;padding:14px 40px;line-height:1;
     box-shadow:0 1px 2px rgba(16,12,6,.20), 0 8px 20px -4px rgba(16,12,6,.42);
     transition:transform .12s ease, box-shadow .18s ease;}
@@ -217,7 +270,7 @@
   .play:active{transform:translateY(1px) scale(.985);}
   /* where you left off in this world — quiet, under the name, only on the card you are on */
   .cstat{display:flex;align-items:center;justify-content:center;gap:10px;
-    font-size:11px;color:#8a8578;font-variant-numeric:tabular-nums;line-height:1;}
+    font-size:10px;color:#8a8578;font-variant-numeric:tabular-nums;line-height:1;}
   .cstat.hide{display:none;}
   .cstat .cgauge{width:46px;height:5px;border-radius:99px;background:rgba(0,0,0,.22);overflow:hidden;}
   .cstat .cgauge i{display:block;height:100%;background:currentColor;}
@@ -244,13 +297,6 @@
   .lv.held::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
     width:4px;height:4px;border-radius:99px;background:currentColor;opacity:.55;}
   .lv.locked{opacity:.3;cursor:default;}
-
-  /* which world you're on — now living in the foot panel under the level numbers,
-     the same "which world, which level" group instead of floating alone over the art */
-  .dots{display:flex;gap:7px;justify-content:center;align-items:center;}
-  .dot{width:7px;height:7px;border-radius:99px;background:rgba(96,74,48,.26);
-    transition:width .25s ease, background .25s ease;}
-  .dot.on{width:22px;background:rgba(96,74,48,.7);}
 </style>
 </head>
 <body>
@@ -788,7 +834,7 @@
   const ISO_N = 12;          // grid is ISO_N × ISO_N cells
   const ISO_FILL = 1.25;      // how much of the map's width one island spans
   const ISO_MAXH = 6;        // tallest column any world reaches
-  const DECK_GAP = 0;                        // cards are full-bleed now, flush edge to edge
+  const DECK_GAP = 14;                       // px between cards in the deck
   const ISO_LO = -1, ISO_HI = ISO_N;      // land can reach a cell past the grid
   const shadeHex = (hex,f) => `rgb(${shadeRGB(hex,f).join(',')})`;
   // each look's signature surface: the material and its highlight
@@ -1485,9 +1531,6 @@
 
   function buildMap(){
     const deck = document.getElementById('mapDeck');
-    // one dots row, identical on every card — each card carries its own copy so the
-    // "which world" indicator travels with whichever card is on screen
-    const dotsRow = `<div class="dots">${WORLDS.map((w,wi)=>`<span class="dot" data-w="${wi}"></span>`).join('')}</div>`;
     let cards = '';
     WORLDS.forEach((w, wi) => {
       const a = wi*LEVELS_PER_WORLD, seen = PREVIEW_UNLOCK || beaten >= a;
@@ -1521,7 +1564,6 @@
         +   `<div class="cname">${seen ? w.name : '? ? ?'}</div>`
         +   stat
         +   `<div class="lvrail">${rail}</div>`
-        +   dotsRow
         + `</div>`
         + `</div></div>`;
     });
@@ -1547,8 +1589,7 @@
     const paint = () => {
       const stp = Math.max(1, step()), sl = deck.scrollLeft;
       const at = Math.round(sl / stp);
-      // every card carries its own copy of the dots row — update them all in lockstep
-      deck.querySelectorAll('.dot').forEach(d=> d.classList.toggle('on', +d.dataset.w===at));
+      // the peek itself now carries "which world am I on" — no separate dots row to sync
       bgSetWorld(Math.max(0, Math.min(WORLDS.length-1, at)));
       deck.querySelectorAll('.card').forEach((c,k)=>{
         const p = (k*stp - sl) / stp;                 // 0 centred, ±1 one card away
@@ -1558,7 +1599,10 @@
         // the threshold sits well inside a full step so they commit rather than dither
         // back and forth while a swipe is still in the air
         c.classList.toggle('active', aa < 0.34);
-        c.style.opacity = (1 - aa*0.45).toFixed(3);
+        // dimming the neighbours used to go down to .55 opacity, which combined with a
+        // ~22px sliver read as page margin rather than "another card." Keeping the peek
+        // closer to full colour is what actually makes it register as a card at a glance.
+        c.style.opacity = (1 - aa*0.22).toFixed(3);
         c.style.transform = `scale(${(1 - aa*0.06).toFixed(4)})`;
         const f = c.querySelector('.frame');
         if (f) f.style.transform = `translateX(${(ease*stp*0.10).toFixed(1)}px)`;
@@ -1581,7 +1625,7 @@
   // Same fill, haze and drifting motes a level uses, so the menu sits in the world it
   // is offering. The world crossfades as you swipe between cards.
   const bgCanvas = document.getElementById('mapBg'), bgCtx = bgCanvas.getContext('2d');
-  let bgParts = [], bgWorld = 0, bgRaf = 0, bgTint = null;
+  let bgParts = [], bgWorld = 0, bgRaf = 0;
   function bgSeed(w, h){
     const f = LOOK_FX[WORLDS[bgWorld].art].part;
     bgParts = [];
@@ -1662,22 +1706,22 @@
     if (!mapEl.classList.contains('show')){ bgRaf = 0; return; }
     const w = bgCanvas.clientWidth, h = bgCanvas.clientHeight;
     const ai = WORLDS[bgWorld].art, W_ = LOOKS[ai], fx = LOOK_FX[ai], f = fx.part;
-    // The page is paper again — a floor texture here read as noise once it was knocked
-    // back far enough to sit under the cards, and as clutter when it was not.
-    // the tint is only the ground the bloom is laid over now, so it sits back again
+    // The ground is the same flat off-white the level panels sit on (topbar, cfoot) —
+    // #faf8f3 — rather than a colour pulled from the world, so the page reads as one
+    // paper the chrome and the deck are both printed on instead of two different surfaces.
     const idc = (CARD_MAT[bgWorld] || CARD_MAT[0]).edge;
-    const target = toRGB(idc).map(c => 242 - (242-c)*0.30);
-    bgTint = bgTint ? bgTint.map((c,i)=> c + (target[i]-c)*0.08) : target.slice();
-    bgCtx.fillStyle = `rgb(${bgTint.map(c=>c|0).join(',')})`;
+    bgCtx.fillStyle = '#faf8f3';
     bgCtx.fillRect(0,0,w,h);
 
     // the card's own scene, blown up until it is only light and colour. Drawn wider and
     // taller than the page so the interesting middle of it lands behind the card rather
-    // than its edges.
-    const bloom = mapBloom(bgWorld);
+    // than its edges. SHOW_BLOOM is off for now — comparing the flat paper on its own,
+    // with nothing blurred from the level behind it, against the tinted version.
+    const SHOW_BLOOM = false;
+    const bloom = SHOW_BLOOM ? mapBloom(bgWorld) : null;
     if (bloom){
       const over = 1.5, bw = w*over, bh = h*over;
-      bgCtx.globalAlpha = 0.68;
+      bgCtx.globalAlpha = 0.30;
       bgCtx.drawImage(bloom, (w-bw)/2, (h-bh)/2 - h*0.04, bw, bh);
       bgCtx.globalAlpha = 1;
     }
@@ -1748,7 +1792,7 @@
     winEl.classList.remove('show'); mapEl.classList.add('show');
     document.querySelector('.device').classList.add('menu');
     buildMap();
-    bgWorld = worldOf(cur); bgTint = null; bgResize();
+    bgWorld = worldOf(cur); bgResize();
     if (!bgRaf) bgRaf = requestAnimationFrame(bgFrame);
     Snd.resume(); Snd.ui();
   }
