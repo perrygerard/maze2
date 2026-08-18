@@ -2530,6 +2530,26 @@
     return paperPat;
   }
 
+  // Same idea as paperTile(), but its own tighter, higher-contrast grain -- clipped onto
+  // just the hedge's top layer (see gardenHedge/bakeGarden) to break up the flat fill the
+  // way the hand-drawn stamp art's speckle used to, without needing per-season art. Fixed
+  // black/white flecks rather than a season colour, so it reads as texture on top of
+  // whichever hedgeMid is active instead of needing its own cache invalidation per season.
+  let hedgeSpecklePat = null;
+  function hedgeSpeckle(){
+    if (hedgeSpecklePat) return hedgeSpecklePat;
+    const t = document.createElement('canvas'); t.width = t.height = 96;
+    const c = t.getContext('2d');
+    for (let i=0;i<420;i++){
+      const mode = i%3;
+      c.fillStyle = mode===0 ? 'rgba(0,0,0,.16)' : mode===1 ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.08)';
+      const r = 0.7 + hash(i,52)*1.2;
+      c.beginPath(); c.arc(hash(i,50)*96, hash(i,51)*96, r, 0, Math.PI*2); c.fill();
+    }
+    hedgeSpecklePat = ctx.createPattern(t, 'repeat');
+    return hedgeSpecklePat;
+  }
+
   const gSeen = i => brightnessOf(i) > 0;
   const gFoggy = (c,r) => !(c>=0 && c<cols && r>=0 && r<rows && gSeen(idx(c,r)));
 
@@ -2736,28 +2756,37 @@
   // flat-cutout art style of the rest of the hedge tiles instead of a soft/glowy shadow.
   let hedgeScratch = null;
   function hedgeDrawTileShadow(g, img, dx, dy, dw, dh, rotationDeg, scale){
-    // recolour the sprite's silhouette on an isolated scratch canvas (never touches the
-    // floor/tiles already drawn on the target), then composite it down, offset.
+    // Same shape as the body, grown uniformly around its own centre and recoloured solid --
+    // the same "layered paper" trick used everywhere else in this file (the cloud sheets,
+    // the blob-based hedge preview): a bigger, darker copy sits under a smaller, lighter
+    // one, peeking out by the same amount on every side. The previous version shifted an
+    // unscaled copy straight down instead, which only reads as a shadow on edges that face
+    // "up" -- a corner's curve faces up on one side of the bend and sideways on the other,
+    // so the sideways-facing half of the curve got little or no peek and kept reading as
+    // "shadow doesn't reach the edge" no matter how the compositing order was fixed.
+    // Growing has no preferred direction, so every edge gets the same peek regardless of
+    // which way the tile is rotated.
     if (!hedgeScratch) hedgeScratch = document.createElement('canvas');
-    const offsetPx = HEDGE_SHADOW_OFFSET_NATIVE * scale;
+    const growPx = HEDGE_SHADOW_OFFSET_NATIVE * scale;
     const pad = 4;
-    const sw = Math.ceil(dw + pad*2), sh = Math.ceil(dh + offsetPx + pad*2);
+    const gw = dw + growPx*2, gh = dh + growPx*2;
+    const sw = Math.ceil(gw + pad*2), sh = Math.ceil(gh + pad*2);
     hedgeScratch.width = sw; hedgeScratch.height = sh;
     const sc = hedgeScratch.getContext('2d');
     sc.clearRect(0,0,sw,sh);
     sc.save();
     if (rotationDeg){
-      sc.translate(pad+dw/2, pad+offsetPx+dh/2);
+      sc.translate(sw/2, sh/2);
       sc.rotate(rotationDeg*Math.PI/180);
-      sc.drawImage(img, -dw/2, -dh/2, dw, dh);
+      sc.drawImage(img, -gw/2, -gh/2, gw, gh);
     } else {
-      sc.drawImage(img, pad, pad+offsetPx, dw, dh);
+      sc.drawImage(img, pad, pad, gw, gh);
     }
     sc.globalCompositeOperation = 'source-in';
     sc.fillStyle = GARDEN.hedgeLo;
     sc.fillRect(0,0,sw,sh);
     sc.restore();
-    g.drawImage(hedgeScratch, dx-pad, dy-pad, sw, sh);
+    g.drawImage(hedgeScratch, dx-growPx-pad, dy-growPx-pad, sw, sh);
   }
   function hedgeDrawTileBody(g, img, dx, dy, dw, dh, rotationDeg, scale){
     g.save();
@@ -2867,10 +2896,12 @@
     if (!hedgePointKnown(x, y)) return;
     const r = (hedgeImg.hMiddle.height*scale*HEDGE_JUNCTION_FRAC)/2 * 0.9;
     const px = x*cs - ox, py = y*cs - oy;
-    const offsetPx = HEDGE_SHADOW_OFFSET_NATIVE*scale;
+    const growPx = HEDGE_SHADOW_OFFSET_NATIVE*scale;
     if (phase === 'shadow'){
+      // Grown in place (same centre, bigger radius) rather than shifted down, so the ring
+      // peeks out evenly all the way around -- matches the strip/corner/T-stop fix above.
       g.fillStyle = GARDEN.hedgeLo;
-      g.beginPath(); g.ellipse(px, py+offsetPx, r, r, 0, 0, Math.PI*2); g.fill();
+      g.beginPath(); g.ellipse(px, py, r+growPx, r+growPx, 0, 0, Math.PI*2); g.fill();
       return;
     }
     g.fillStyle = GARDEN.hedgeLo;
@@ -2900,9 +2931,38 @@
   /* The hedge silhouette. The body is one rounded rectangle per wall rather than a
      chain of circles — a capsule either way, but fifteen times fewer subpaths, which
      is the difference between a bake you notice and one you do not. The scallops stay
-     circles; they are the whole look. */
-  function gardenHedge(g, ox, oy, c0, r0, c1, r1, rough){
-    const th = Math.max(5, cellSize*0.357), s = cellSize;
+     circles; they are the whole look.
+
+     Two layers, not the old three: a 'dark' layer (hedgeLo) grown uniformly outward
+     by growPx on every side, then a 'top' layer (hedgeMid) at nominal size on top, so
+     the dark layer peeks out as an even rim all the way around -- same fix as the
+     tile-stamp shadow (hedgeDrawTileShadow): growing has no preferred direction, so a
+     bend in the wall gets exactly as much rim as a straight run does, instead of a
+     directional offset that only shows up on edges facing one way. Corners and T-stops
+     aren't separate pieces here at all -- a corner is just two capsules overlapping --
+     so there's no separate corner-shadow logic left to get out of sync with the rest
+     of the wall in the first place.
+
+     bumps=false draws just the roundRect capsules, skipping the scallop dots -- used to
+     cast the offset drop shadow from a plain straight-edged shape instead of a copy of
+     the bushy silhouette (a canvas shadow is always a copy of whatever it's attached to,
+     so casting it from the bushy path would mirror every bump into the shadow too). */
+  function gardenHedge(g, ox, oy, c0, r0, c1, r1, layer, bumps, wallExtend){
+    if (bumps === undefined) bumps = true;
+    if (wallExtend === undefined) wallExtend = 0;
+    // hedgeDegAt(x,y) (built for the old tile system, but purely topological -- it doesn't
+    // care which renderer uses it) tells us how many wall segments meet a grid vertex.
+    // Degree 1 is a true dead end: nothing continues past it, so that tip is squared off.
+    // Degree 2+ is a straight-through point, a bend, a T, or a cross -- something keeps
+    // going, so that end stays rounded and gets fused into the join by the overlap, same
+    // as before.
+    if (hedgeLevelVer !== levelVer) rebuildHedgeGeometry();
+    const s = cellSize;
+    const th0 = Math.max(5, s*0.357);
+    const growPx = 2;   // fixed border thickness in px, not proportional to cell size
+    const grown = layer === 'dark';
+    const th = grown ? th0 + growPx*2 : th0;
+    const grow = grown ? growPx : 0;
     const dot = (x,y,r) => { g.moveTo(x+r, y); g.arc(x, y, r, 0, 7); };
     g.beginPath();
     for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
@@ -2913,27 +2973,40 @@
         const nc = c+dc, nr = r+dr;
         return nc>=0 && nc<cols && nr>=0 && nr<rows && gSeen(idx(nc,nr));
       };
-      // Few, large, overlapping lobes rather than many small ones: beads read as
-      // bubbles, lobes that run into each other read as a clipped hedge waving.
-      const run = (x0, y0, horiz, seed) => {
-        if (horiz) g.roundRect(x0 - th/2, y0 - th/2, s + th, th, th/2);
-        else       g.roundRect(x0 - th/2, y0 - th/2, th, s + th, th/2);
-        const step = Math.max(7, cellSize*0.40);
+      // Many small, irregular lobes rather than a few large ones: big evenly-sized bumps
+      // read as individual things stuck onto the wall (bubbles, growths); a denser
+      // scatter of smaller bumps with independently randomised size and position on
+      // each side of the wall reads as foliage instead. The two edges of a run no
+      // longer share the same size/offset draw (they used to be mirrored, one just
+      // 0.9x the other) -- decorrelating them breaks the "paired twin blob" look.
+      const run = (x0, y0, horiz, seed, gx0, gy0, gx1, gy1) => {
+        const rFull = th/2, capR = 3;   // small bevel on true dead ends, not fully square
+        const rA = hedgeDegAt(gx0, gy0) === 1 ? capR : rFull;
+        const rB = hedgeDegAt(gx1, gy1) === 1 ? capR : rFull;
+        // wallExtend stretches the south edge of the capsule's own box straight down
+        // (no horizontal shift) -- same silhouette as the rim everywhere else, so it's
+        // flush-attached with no gap, and only the extra height peeks out below/beside
+        // the rim. That reads as the hedge's own solid side face; a canvas shadow
+        // (offset + blur) reads as a shape cast away from the object instead.
+        if (horiz) g.roundRect(x0 - th/2 - grow, y0 - th/2, s + th + grow*2, th + wallExtend, [rA, rB, rB, rA]);
+        else       g.roundRect(x0 - th/2, y0 - th/2 - grow, th, s + th + grow*2 + wallExtend, [rA, rA, rB, rB]);
+        if (!bumps) return;   // wall-face pass: straight capsule only, no scallops
+        const step = Math.max(5, cellSize*0.24);
         for (let n = 0; step*(n + 0.5) < s; n++){
           const d = step*(n + 0.5);
-          const k = hash(seed + n*4.13, 3);
-          const rr = th*(0.38 + k*0.20)*(rough||1);
-          const j = (hash(seed + n*7.71, 5) - 0.5)*step*0.34;
-          const push = th/2 - rr*0.70;              // seated in the body, not perched on it
-          if (horiz){ dot(x0+d+j, y0 - push, rr); dot(x0+d+j, y0 + push, rr*0.9); }
-          else      { dot(x0 - push, y0+d+j, rr); dot(x0 + push, y0+d+j, rr*0.9); }
+          const j = (hash(seed + n*7.71, 5) - 0.5)*step*0.5;
+          const k1 = hash(seed + n*4.13, 3), k2 = hash(seed + n*5.91, 9);
+          const rr1 = th0*(0.14 + k1*0.20) + grow, rr2 = th0*(0.14 + k2*0.20) + grow;
+          const push1 = th/2 - rr1*0.70, push2 = th/2 - rr2*0.70;  // seated, not perched
+          if (horiz){ dot(x0+d+j, y0 - push1, rr1); dot(x0+d+j, y0 + push2, rr2); }
+          else      { dot(x0 - push1, y0+d+j, rr1); dot(x0 + push2, y0+d+j, rr2); }
         }
       };
       const seed = c*131.7 + r*57.3;
-      if (w[0] && known(0,-1)) run(x, y, true,  seed);
-      if (w[3] && known(-1,0)) run(x, y, false, seed + 1.7);
-      if (w[1] && c===cols-1 && gSeen(i)) run(x + s, y, false, seed + 3.4);
-      if (w[2] && r===rows-1 && gSeen(i)) run(x, y + s, true,  seed + 5.1);
+      if (w[0] && known(0,-1)) run(x, y, true,  seed,       c,   r,   c+1, r  );
+      if (w[3] && known(-1,0)) run(x, y, false, seed + 1.7, c,   r,   c,   r+1);
+      if (w[1] && c===cols-1 && gSeen(i)) run(x + s, y, false, seed + 3.4, c+1, r,   c+1, r+1);
+      if (w[2] && r===rows-1 && gSeen(i)) run(x, y + s, true,  seed + 5.1, c,   r+1, c+1, r+1);
     }
   }
 
@@ -2944,22 +3017,19 @@
      their neighbours slightly, because an exactly abutting seam antialiases into a
      visible lattice. The field runs two cells past the layer, so nothing at the frame
      has an outside and the sheet reaches the edge flush. */
-  // Hard boundary for the cloud layer: exact, un-rounded cell squares for every still-
-  // foggy cell. gardenFog's own sheets use rounding, inset, and small per-sheet offsets
-  // (the hand-torn-paper look, plus a drop shadow on the lowest sheet) that can spill a
-  // few px past a cell's true edge -- invisible between two foggy cells, but visible as
-  // a stray white/gray sliver when that spill lands on an already-seen cell sitting next
-  // to a freshly revealed hedge corner (a corner's rounded art leaves a bit of that
-  // neighbour cell's edge uncovered, unlike a straight run's wall thickness). Clipping
-  // the whole cloud pass to this mask stops any sheet from ever painting past a cell
-  // that isn't actually still foggy, without touching reveal timing.
+  // Boundary for the cloud layer, clipped to still-foggy cells so no sheet's blur/
+  // offset can spill onto an already-seen cell (a stray white/gray sliver landing on
+  // a freshly revealed hedge corner, which a rounded corner's art doesn't fully cover
+  // the way a straight run's wall thickness does). This used to be raw, un-rounded
+  // per-cell squares -- safe, but a hard-cornered mask cutting into the sheets' own
+  // smoothly rounded silhouette left small rectangular notches (one per cell corner)
+  // along what should read as one continuous curve. Reusing gardenFog's own rounded/
+  // inset shape instead -- slightly less rounded and with no inset, so it's a strict
+  // superset of the sheets it's clipping (they all round at FOG_RAD with some inset,
+  // which only ever shrinks them further) -- keeps the mask a curve that matches the
+  // sheets' own instead of fighting it, even after their small per-sheet nudges.
   function gardenFogMask(g, ox, oy, c0, r0, c1, r1){
-    const s = cellSize;
-    g.beginPath();
-    for (let r=r0-2; r<=r1+2; r++) for (let c=c0-2; c<=c1+2; c++){
-      if (!gFoggy(c,r)) continue;
-      g.rect(c*s - ox, r*s - oy, s, s);
-    }
+    gardenFog(g, ox, oy, c0, r0, c1, r1, cellSize*0.40, 0);
   }
   function gardenFog(g, ox, oy, c0, r0, c1, r1, rad, inset){
     const s = cellSize, ov = Math.max(0.6, s*0.014), ins = inset || 0;
@@ -3029,6 +3099,19 @@
     g.fillStyle = GARDEN.grass; g.fillRect(0,0,w,h);
     g.fillStyle = cardAnchor(paperTile(), ox, oy); g.fillRect(0,0,w,h);
 
+    // The hedge's wall-face extrusion goes down first, before the path -- it's the
+    // ground-level base/ shadow of the wall, and the path sits on the ground too, so
+    // where the trail runs close beside a wall it should read as in front of that base,
+    // not chopped off by it. The rim + top (the wall's actual standing body) still draw
+    // after the path further down, so the wall itself correctly covers the trail if they
+    // ever truly overlap -- only the extruded "shadow" area yields to the path.
+    g.save();
+    const wallH = 16*k;
+    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'dark', false, wallH);
+    g.fillStyle = GARDEN.hedgeLo;
+    g.fill();
+    g.restore();
+
     // the path you have laid, under everything else on the ground
     g.lineCap = 'round'; g.lineJoin = 'round';
     if (gardenPathAt(g, ox, oy)){
@@ -3056,44 +3139,82 @@
       }
     }
 
-    // the hedge: PNG stamps (middle/endcap/corner/t-stop), rotated to fit and each with
-    // its own baked-in drop shadow. Drawn BEFORE the cloud (the cloud used to be under the
-    // hedge, so any piece that was "known" -- even via the lenient any-touching-cell-seen
-    // rule -- always painted fully solid, visible right through fog that hadn't actually
-    // cleared over its own cell yet). Now the cloud is the top layer again, so a hedge
-    // piece only reads as fully revealed once the fog over its own footprint is gone --
-    // otherwise it's dimmed/hidden under cloud like everything else that isn't seen yet.
-    drawHedgeTiles(g, ox, oy);
-
-    // the cloud: the same three sheets, cut from the grid, clipped hard to the exact set
-    // of still-foggy cells (gardenFogMask) so none of the three sheets' blur/offset can
-    // spill onto an already-seen cell -- that's what used to read as fog "cutting off" a
-    // corner that had just been drawn. With the clip, a foggy cell's cloud can only ever
-    // cover that cell's own square, so it sits over an early-revealed hedge piece cleanly,
-    // right up to the cell boundary, instead of in some blobby shape that doesn't line up
-    // with the grid.
+    // the hedge: two-layer procedural capsule wall (gardenHedge), not the PNG stamps --
+    // dark rim layer, then the top fill layer with a speckle grain clipped onto it for
+    // texture. Drawn BEFORE the cloud (the cloud used to be under the hedge, so any piece
+    // that was "known" -- even via the lenient any-touching-cell-seen rule -- always
+    // painted fully solid, visible right through fog that hadn't actually cleared over its
+    // own cell yet). Now the cloud is the top layer again, so a hedge piece only reads as
+    // fully revealed once the fog over its own footprint is gone -- otherwise it's
+    // dimmed/hidden under cloud like everything else that isn't seen yet.
+    // (The wall-face extrusion itself was already drawn above, before the path, so the
+    // trail reads in front of it.) The bushy dark rim goes now -- no shadow properties
+    // active here, just the uniform grown-outward peek border, textured to match the
+    // top layer.
     g.save();
-    gardenFogMask(g, ox, oy, c0, r0, c1, r1);
-    g.clip();
+    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'dark');
+    g.fillStyle = GARDEN.hedgeLo;
+    g.fill();
+    g.restore();
+    g.save();
+    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'top');
+    g.fillStyle = GARDEN.hedgeMid;
+    g.fill();
+    g.save(); g.clip();
+    g.fillStyle = cardAnchor(hedgeSpeckle(), ox, oy);
+    g.fillRect(0,0,w,h);
+    g.restore();
+    g.restore();
+
+    // the cloud: three sheets, each clipped to the exact set of still-foggy cells
+    // (gardenFogMask) so none of the three sheets' blur/offset can spill onto an
+    // already-seen cell -- that's what used to read as fog "cutting off" a corner
+    // that had just been drawn. With the clip, a foggy cell's cloud can only ever
+    // cover that cell's own square, so it sits over an early-revealed hedge piece
+    // cleanly, right up to the cell boundary, instead of in some blobby shape that
+    // doesn't line up with the grid.
+    // Each of the three paper sheets is nudged up-left by its own amount (the torn-
+    // layers look), but a single clip mask built once, before any of those nudges,
+    // stays put in its own original spot -- so a shifted sheet's soft rounded edge
+    // was getting sliced by a mask window that no longer lined up with it, which is
+    // exactly what read as a flat, hard cut instead of a soft edge. Re-deriving the
+    // mask separately inside each sheet's own translated frame keeps the clip window
+    // riding along with that sheet, so it always cuts relative to where that sheet's
+    // rounded shape actually sits, not where the untranslated base sheet sits.
+    // The three sheets used to round each at its own radius (.40/.42/.46) -- close,
+    // but not equal, so one sheet's corner arc wasn't a true concentric shrink of the
+    // next one's. Where a rounded corner cell sits beside a straight-run cell (square
+    // corner, only one edge exposed there), the straight cell's unrounded corner and
+    // the rounded neighbour's arc no longer met at quite the same tangent once their
+    // radii differed -- which is what read as tiny rectangular teeth notched into the
+    // curve. Rounding every sheet at the same FOG_RAD keeps every sheet's corner a
+    // plain scaled/shifted copy of the others, so they nest as smooth concentric
+    // curves instead.
+    const FOG_RAD = s*0.42;
     g.save();
     g.shadowColor = GARDEN.cast; g.shadowBlur = 12*k;
     g.shadowOffsetX = 4*k; g.shadowOffsetY = 10*k;
-    gardenFog(g, ox, oy, c0, r0, c1, r1, s*0.40, 0);
+    gardenFogMask(g, ox, oy, c0, r0, c1, r1);
+    g.clip();
+    gardenFog(g, ox, oy, c0, r0, c1, r1, FOG_RAD, 0);
     g.fillStyle = GARDEN.cloudLo; g.fill();
     g.restore();
     g.save(); g.translate(-4*k, -6*k);
-    gardenFog(g, ox, oy, c0, r0, c1, r1, s*0.42, 1.5*k);
+    gardenFogMask(g, ox, oy, c0, r0, c1, r1);
+    g.clip();
+    gardenFog(g, ox, oy, c0, r0, c1, r1, FOG_RAD, 1.5*k);
     g.fillStyle = GARDEN.cloudMid; g.fill();
     g.save(); g.clip();
     g.fillStyle = cardAnchor(paperTile(), ox + 4*k, oy + 6*k); g.fillRect(0,0,w,h);
     g.restore(); g.restore();
     g.save(); g.translate(-9*k, -13*k);
-    gardenFog(g, ox, oy, c0, r0, c1, r1, s*0.46, 5*k);
+    gardenFogMask(g, ox, oy, c0, r0, c1, r1);
+    g.clip();
+    gardenFog(g, ox, oy, c0, r0, c1, r1, FOG_RAD, 5*k);
     g.fillStyle = GARDEN.cloudHi; g.fill();
     g.save(); g.clip();
     g.fillStyle = cardAnchor(paperTile(), ox + 9*k, oy + 13*k); g.fillRect(0,0,w,h);
     g.restore(); g.restore();
-    g.restore(); // fog mask clip
   }
 
   // only the things that move between steps
