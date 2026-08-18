@@ -303,14 +303,14 @@
   <div class="device">
     <div class="stage" id="stage">
       <canvas id="c"></canvas>
-      <div class="hint" id="hint">Drag or tap through the dark. Gather the <b>light</b></div>
+      <div class="hint" id="hint">Drag or tap through the dark. <b>Snacks</b> keep you glowing</div>
       <div class="win" id="win">
-        <h2 id="winh2">Out.</h2>
-        <p id="wintag">You found the way through.</p>
+        <h2 id="winh2">Found one!</h2>
+        <p id="wintag">You followed the trail.</p>
         <div class="figures">
           <div id="wtime">0:00<span>time</span></div>
           <div id="wsteps">0<span>steps</span></div>
-          <div id="wembers">0<span>embers</span></div>
+          <div id="wembers">0<span>treats</span></div>
         </div>
         <div class="row">
           <button class="btn" id="next">Next level</button>
@@ -588,7 +588,7 @@
     if (hintTimer) { clearTimeout(hintTimer); hintTimer = 0; }
     if (started) elHint.style.opacity = '0';
     else {
-      elHint.innerHTML = `Gather <b>${emberNeed}</b> ember${emberNeed===1?'':'s'}, then reach the light`;
+      elHint.innerHTML = `Gather <b>${emberNeed}</b> treat${emberNeed===1?'':'s'} for Olli`;
       elHint.style.opacity = '1';
     }
     levelVer++;
@@ -745,7 +745,7 @@
     fingerActive = null;
     winEl.classList.remove('show');
     if (hintTimer) { clearTimeout(hintTimer); hintTimer = 0; }
-    elHint.innerHTML = `Gather <b>${emberNeed}</b> ember${emberNeed===1?'':'s'}, then reach the light`;
+    elHint.innerHTML = `Gather <b>${emberNeed}</b> treat${emberNeed===1?'':'s'} for Olli`;
     elHint.style.opacity = '1';
     layout();
     tipX = (cx(startCell)+0.5)*cellSize; tipY = (cy(startCell)+0.5)*cellSize;
@@ -1934,7 +1934,7 @@
         Snd.ember();
         blooms.push({ x:(cx(next)+0.5)*cellSize, y:(cy(next)+0.5)*cellSize, t0:performance.now(), key:true });
         if (emberGot === emberNeed){                // just enough — the exit opens
-          showHint('The way is open — reach the exit');
+          showHint('Enough treats — Olli is coming out');
           Snd.exitOpen();
           blooms.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now(), big:true });
         }
@@ -1948,7 +1948,7 @@
       }
       if (!warnedLow && light < CRIT){               // dramatic first warning
         warnedLow = true;
-        showHint(T.skin === 'garden' ? 'The breeze is dying — find a gust' : 'Your lantern is fading — find a flame');
+        showHint('Getting dark — find a snack');
         Snd.low();
       }
     }
@@ -1960,8 +1960,7 @@
         pings.push({ x:(cx(endCell)+0.5)*cellSize, y:(cy(endCell)+0.5)*cellSize, t0:performance.now() });
         Snd.sealed();
         const remain = emberNeed - emberGot;
-        const item = T.skin === 'garden' ? `vane${remain===1?'':'s'}` : `ember${remain===1?'':'s'}`;
-        showHint(`Gather ${remain} more ${item} to open the way`);
+        showHint(`Gather ${remain} more treat${remain===1?'':'s'} for Olli`);
       }
     }
   }
@@ -2113,9 +2112,9 @@
     const last = cur+1 >= TOTAL;
     const nextBtn = document.getElementById('next');
     nextBtn.textContent = last ? 'Play again' : 'Next level';
-    const tags = ["You found the way through.","The lantern carried you home.","The thread held.","Out, and still glowing."];
-    document.getElementById('wintag').textContent = last ? 'You’ve threaded every world.' : tags[(Math.random()*tags.length)|0];
-    document.getElementById('winh2').textContent = last ? 'Complete.' : 'Out.';
+    const tags = ["You followed the trail.","Still warm — he was just here.","The snacks kept your glow up.","Closer than yesterday."];
+    document.getElementById('wintag').textContent = last ? 'You found him.' : tags[(Math.random()*tags.length)|0];
+    document.getElementById('winh2').textContent = last ? 'Olly olly, oxen free!' : 'Found one!';
     setTimeout(()=>winEl.classList.add('show'), 420);
   }
 
@@ -2534,6 +2533,370 @@
   const gSeen = i => brightnessOf(i) > 0;
   const gFoggy = (c,r) => !(c>=0 && c<cols && r>=0 && r<rows && gSeen(idx(c,r)));
 
+
+  // ---- hedge tiles: 4 hand-drawn stamps (middle/endcap/corner/t-stop) rotated at draw
+  // time to cover every orientation a maze wall needs. Ported from the standalone
+  // hedge-tileset-mockup.html after the tiling/thickness/junction-size tuning was verified
+  // there -- see that file for the full derivation. Season colour is not carried into the
+  // tile art itself yet (it's always the same green); only the drop shadow follows
+  // GARDEN.hedgeLo so it stays roughly in key with whichever look is active.
+  const HEDGE_TILE_SRC = {
+    middle: "data:image/png;base64,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",
+    endcap: "data:image/png;base64,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",
+    corner: "data:image/png;base64,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",
+    tStop:  "data:image/png;base64,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"
+  };
+  const hedgeImg = {};
+  let hedgeTilesReady = false;
+  (function loadHedgeTiles(){
+    const names = Object.keys(HEDGE_TILE_SRC);
+    let loaded = 0;
+    names.forEach(name => {
+      const im = new Image();
+      im.onload = () => {
+        loaded++;
+        if (loaded === names.length){ buildHedgeDerivedTiles(); hedgeTilesReady = true; bakeVer = -1; }
+      };
+      im.src = HEDGE_TILE_SRC[name];
+      hedgeImg[name] = im;
+    });
+  })();
+  function rotateHedgeTile(img, deg){
+    const swapped = (deg === 90 || deg === 270);
+    const w = img.width, h = img.height;
+    const c = document.createElement('canvas');
+    c.width = swapped ? h : w; c.height = swapped ? w : h;
+    const cctx = c.getContext('2d');
+    cctx.translate(c.width/2, c.height/2);
+    cctx.rotate(deg*Math.PI/180);
+    cctx.drawImage(img, -w/2, -h/2, w, h);
+    return c;
+  }
+  function buildHedgeDerivedTiles(){
+    // middle: wobble top+bottom, flush left+right -> as-is for horizontal runs, rotated 90
+    // for vertical runs (wobble becomes left+right).
+    hedgeImg.hMiddle = hedgeImg.middle;
+    hedgeImg.hVert   = rotateHedgeTile(hedgeImg.middle, 90);
+    // endcap: flush bottom, wobble top+left+right at rot 0 (caps a vertical stub whose wall
+    // continues downward). Rotating 90 CW cycles which side is flush: 90->flush left (wall
+    // continues left), 180->flush top (wall continues up), 270->flush right (continues right).
+    hedgeImg.vTop    = rotateHedgeTile(hedgeImg.endcap, 0);
+    hedgeImg.hRight  = rotateHedgeTile(hedgeImg.endcap, 90);
+    hedgeImg.vBottom = rotateHedgeTile(hedgeImg.endcap, 180);
+    hedgeImg.hLeft   = rotateHedgeTile(hedgeImg.endcap, 270);
+  }
+  const HEDGE_NATIVE_CELL = 72;
+  const HEDGE_SHADOW_OFFSET_NATIVE = 6;
+  // fraction of a cell each straight-run square stamp's side spans. 0.5 is deliberate, not
+  // just "close enough to the old 0.55": it means exactly 2 of these square stamps tile one
+  // maze cell with zero stretch in either axis (see hedgeDrawStrip). Still comfortably inside
+  // the sealing-bug-free range verified earlier (0 cells sealed at 0.45-0.55).
+  const HEDGE_WALL_THICKNESS = 0.5;
+  // Matches HEDGE_WALL_THICKNESS exactly so the corner/T-stop wobble reads at the same scale
+  // as the straight runs instead of looking like a slightly different radius where they meet.
+  const HEDGE_JUNCTION_FRAC = 0.5;
+  // how far adjacent square stamps grow into each other -- see hedgeDrawStrip's place().
+  const HEDGE_SEAM_OVERLAP_NATIVE = 6;
+
+  // ---- maze walls[N,E,S,W] per cell -> deduped grid-edge segments -> straight strips ->
+  // corner/T/plus junction classification, computed once per maze and cached until the
+  // level changes (fog reveals don't change the wall layout, only what's drawn of it) ----
+  let hedgeStrips = [], hedgeCorners = [], hedgeTStops = [], hedgePlus = [];
+  let hedgeLevelVer = -1, hedgeDegAt = () => 0;
+  function hedgeWallSegments(){
+    const segs = [];
+    for (let r=0; r<rows; r++) for (let c=0; c<cols; c++){
+      const w = cells[idx(c,r)].walls;
+      if (w[0]) segs.push([c,r, c+1,r]);                     // N
+      if (w[3]) segs.push([c,r, c,r+1]);                     // W
+      if (c===cols-1 && w[1]) segs.push([c+1,r, c+1,r+1]);   // E, only the far column needs it
+      if (r===rows-1 && w[2]) segs.push([c,r+1, c+1,r+1]);   // S, only the far row needs it
+    }
+    return segs;
+  }
+  function hedgeDedupeSegs(segs){
+    const seen = new Set(); const out = [];
+    segs.forEach(s => { const k = s.join(','); if (!seen.has(k)){ seen.add(k); out.push(s); } });
+    return out;
+  }
+  function hedgeBuildStrips(segs){
+    const horiz = segs.filter(s => s[1] === s[3]);
+    const vert  = segs.filter(s => s[0] === s[2]);
+    function mergeRanges(pairs){
+      pairs.sort((a,b) => a[0]-b[0]);
+      const merged = []; let cur = null;
+      pairs.forEach(([a,b]) => {
+        if (cur && a === cur[1]) cur[1] = b;
+        else { if (cur) merged.push(cur.slice()); cur = [a,b]; }
+      });
+      if (cur) merged.push(cur);
+      return merged;
+    }
+    const strips = [];
+    const byRow = new Map();
+    horiz.forEach(([x0,y,x1]) => { if (!byRow.has(y)) byRow.set(y, []); byRow.get(y).push([Math.min(x0,x1), Math.max(x0,x1)]); });
+    byRow.forEach((pairs, y) => { mergeRanges(pairs).forEach(([x0,x1]) => strips.push({orient:'h', fixed:y, a:x0, b:x1})); });
+    const byCol = new Map();
+    vert.forEach(([x,y0,,y1]) => { if (!byCol.has(x)) byCol.set(x, []); byCol.get(x).push([Math.min(y0,y1), Math.max(y0,y1)]); });
+    byCol.forEach((pairs, x) => { mergeRanges(pairs).forEach(([y0,y1]) => strips.push({orient:'v', fixed:x, a:y0, b:y1})); });
+    return strips;
+  }
+  function hedgeDegreeMap(deduped){
+    const deg = new Map();
+    const bump = (x,y) => { const k = `${x},${y}`; deg.set(k, (deg.get(k)||0)+1); };
+    deduped.forEach(([x1,y1,x2,y2]) => { bump(x1,y1); bump(x2,y2); });
+    return deg;
+  }
+  function rebuildHedgeGeometry(){
+    const segs = hedgeDedupeSegs(hedgeWallSegments());
+    hedgeStrips = hedgeBuildStrips(segs);
+    const degMap = hedgeDegreeMap(segs);
+    const degAt = (x,y) => degMap.get(`${x},${y}`) || 0;
+
+    const pointTouches = new Map();
+    hedgeStrips.forEach(s => {
+      const addTouch = (x,y,end) => {
+        const k = `${x},${y}`;
+        if (!pointTouches.has(k)) pointTouches.set(k, []);
+        pointTouches.get(k).push({strip:s, end});
+      };
+      if (s.orient === 'h') { addTouch(s.a, s.fixed, 'a'); addTouch(s.b, s.fixed, 'b'); }
+      else { addTouch(s.fixed, s.a, 'a'); addTouch(s.fixed, s.b, 'b'); }
+    });
+    hedgeCorners = []; hedgeTStops = []; hedgePlus = [];
+    pointTouches.forEach((touches, key) => {
+      const [x,y] = key.split(',').map(Number);
+      if (degAt(x,y) < 2) return;
+      const hs = touches.filter(t => t.strip.orient === 'h');
+      const vs = touches.filter(t => t.strip.orient === 'v');
+      if (hs.length === 1 && vs.length === 1 && touches.length === 2){
+        const hDir = hs[0].end === 'a' ? 'right' : 'left';
+        const vDir = vs[0].end === 'a' ? 'down' : 'up';
+        const rot = { 'left_down':0, 'left_up':90, 'right_up':180, 'right_down':270 }[`${hDir}_${vDir}`];
+        hedgeCorners.push({x, y, rot});
+      } else if (touches.length === 1){
+        const t = touches[0];
+        const stubDir = t.strip.orient === 'h'
+          ? (t.end === 'a' ? 'right' : 'left')
+          : (t.end === 'a' ? 'down' : 'up');
+        const rot = { down:0, left:90, up:180, right:270 }[stubDir];
+        hedgeTStops.push({x, y, rot});
+      } else {
+        hedgePlus.push({x, y});
+      }
+    });
+    const segOrientAt = new Map();
+    segs.forEach(([x1,y1,x2,y2]) => {
+      const isH = y1 === y2;
+      [[x1,y1],[x2,y2]].forEach(([x,y]) => {
+        const k = `${x},${y}`;
+        if (!segOrientAt.has(k)) segOrientAt.set(k, new Set());
+        segOrientAt.get(k).add(isH ? 'h' : 'v');
+      });
+    });
+    segOrientAt.forEach((orients, key) => {
+      if (pointTouches.has(key)) return;
+      if (orients.has('h') && orients.has('v')){
+        const [x,y] = key.split(',').map(Number);
+        hedgePlus.push({x, y});
+      }
+    });
+    hedgeDegAt = degAt;
+    hedgeLevelVer = levelVer;
+  }
+
+  // fog-of-war gate: an edge/junction shows once any cell it touches has been seen --
+  // generalises gardenHedge's old per-cell known(dc,dr) check to arbitrary grid points
+  function hedgeCellKnown(c, r){
+    return c>=0 && c<cols && r>=0 && r<rows && gSeen(idx(c,r));
+  }
+  // Back to the original, lenient "any touching cell seen" rule for both junctions and
+  // segments -- reveal as early and smoothly as before. The cloud-overlap problem this used
+  // to cause (a piece revealed while part of its own footprint was still under a still-foggy
+  // cell) is now handled at the drawing-order level instead: the cloud is drawn BEFORE the
+  // hedge tiles (see bakeGarden), so any cloud remnant a freshly-revealed piece overlaps just
+  // ends up underneath it, not on top. That fixes the visual glitch without having to hold
+  // pieces back until their whole neighborhood is lit, which is what made hedges pop in late
+  // and abruptly instead of revealing gradually with the light.
+  function hedgePointKnown(x, y){
+    return hedgeCellKnown(x-1,y-1) || hedgeCellKnown(x,y-1) || hedgeCellKnown(x-1,y) || hedgeCellKnown(x,y);
+  }
+  // A segment only needs one of its two flanking cells seen; if neither is but a junction it
+  // touches is already known, show it anyway so a straight run never lags behind the bend
+  // it's feeding into (the original corner/T-stop "notch" bug).
+  function hedgeSegKnown(x1,y1,x2,y2){
+    if (hedgePointKnown(x1,y1) || hedgePointKnown(x2,y2)) return true;
+    if (y1 === y2) return hedgeCellKnown(x1, y1-1) || hedgeCellKnown(x1, y1);
+    return hedgeCellKnown(x1-1, y1) || hedgeCellKnown(x1, y1);
+  }
+
+  // Shadow and body are two separate draw calls (instead of one combined call) so the whole
+  // hedge layer can be rendered in two full passes -- every tile's shadow first, then every
+  // tile's body on top (see drawHedgeTiles). Solid color, hard edges, no blur -- matches the
+  // flat-cutout art style of the rest of the hedge tiles instead of a soft/glowy shadow.
+  let hedgeScratch = null;
+  function hedgeDrawTileShadow(g, img, dx, dy, dw, dh, rotationDeg, scale){
+    // recolour the sprite's silhouette on an isolated scratch canvas (never touches the
+    // floor/tiles already drawn on the target), then composite it down, offset.
+    if (!hedgeScratch) hedgeScratch = document.createElement('canvas');
+    const offsetPx = HEDGE_SHADOW_OFFSET_NATIVE * scale;
+    const pad = 4;
+    const sw = Math.ceil(dw + pad*2), sh = Math.ceil(dh + offsetPx + pad*2);
+    hedgeScratch.width = sw; hedgeScratch.height = sh;
+    const sc = hedgeScratch.getContext('2d');
+    sc.clearRect(0,0,sw,sh);
+    sc.save();
+    if (rotationDeg){
+      sc.translate(pad+dw/2, pad+offsetPx+dh/2);
+      sc.rotate(rotationDeg*Math.PI/180);
+      sc.drawImage(img, -dw/2, -dh/2, dw, dh);
+    } else {
+      sc.drawImage(img, pad, pad+offsetPx, dw, dh);
+    }
+    sc.globalCompositeOperation = 'source-in';
+    sc.fillStyle = GARDEN.hedgeLo;
+    sc.fillRect(0,0,sw,sh);
+    sc.restore();
+    g.drawImage(hedgeScratch, dx-pad, dy-pad, sw, sh);
+  }
+  function hedgeDrawTileBody(g, img, dx, dy, dw, dh, rotationDeg, scale){
+    g.save();
+    if (rotationDeg){
+      g.translate(dx+dw/2, dy+dh/2);
+      g.rotate(rotationDeg*Math.PI/180);
+      g.drawImage(img, -dw/2, -dh/2, dw, dh);
+    } else {
+      g.drawImage(img, dx, dy, dw, dh);
+    }
+    g.restore();
+  }
+
+  function hedgeDrawStrip(g, s, ox, oy, cs, scale, phase){
+    const n = s.b - s.a;
+    const startDead = hedgeDegAt(...(s.orient==='h' ? [s.a,s.fixed] : [s.fixed,s.a])) === 1;
+    const endDead   = hedgeDegAt(...(s.orient==='h' ? [s.b,s.fixed] : [s.fixed,s.b])) === 1;
+    function place(img, alongPx, crossPx, side){
+      // Grow the square slightly, centered on its nominal footprint -- both axes together, so
+      // it's still a perfect square, just marginally bigger, never stretched. Each stamp's
+      // border stroke wraps a few native px onto its flush edges near the corners (where it
+      // curves around from the wobbly edge); two squares butted exactly edge-to-edge each show
+      // that sliver, which doubles up into a visible seam line between every stamp. Growing
+      // (rather than resizing non-uniformly) means the later-drawn neighbor's own fill paints
+      // over the earlier square's sliver instead. Re-checked against real maze data: still zero
+      // door-openings get sealed with this much growth.
+      const grown = side + HEDGE_SEAM_OVERLAP_NATIVE*scale;
+      const shift = HEDGE_SEAM_OVERLAP_NATIVE*scale/2;
+      const dx = s.orient === 'h' ? alongPx-shift : crossPx-shift;
+      const dy = s.orient === 'h' ? crossPx-shift : alongPx-shift;
+      if (phase === 'shadow') hedgeDrawTileShadow(g, img, dx, dy, grown, grown, 0, scale);
+      else hedgeDrawTileBody(g, img, dx, dy, grown, grown, 0, scale);
+    }
+    // Every tile is stamped as a true, undistorted square -- side length equal to the wall's
+    // visual cross-axis thickness. The earlier approach stretched the square 72x72 source art
+    // into a full-cell-wide x thin-tall box, which warped it non-uniformly (round scallops
+    // became ovals, the border stroke read as a different thickness on different sides -- the
+    // "extra border" that kept showing up). HEDGE_WALL_THICKNESS = 0.5 means exactly 2 of
+    // these squares tile one maze cell with zero stretch in either axis.
+    const crossNative = (s.orient === 'h' ? hedgeImg.hMiddle.height : hedgeImg.hVert.width) * HEDGE_WALL_THICKNESS;
+    const sq = crossNative*scale;
+    const crossPx = (s.orient==='h' ? s.fixed*cs - oy : s.fixed*cs - ox) - sq/2;
+    const segKnown = i => s.orient==='h'
+      ? hedgeSegKnown(s.a+i, s.fixed, s.a+i+1, s.fixed)
+      : hedgeSegKnown(s.fixed, s.a+i, s.fixed, s.a+i+1);
+
+    for (let i=0;i<n;i++){
+      if (!segKnown(i)) continue;
+      const slotStart = (s.orient==='h' ? (s.a+i)*cs - ox : (s.a+i)*cs - oy);
+      const midImg = s.orient==='h' ? hedgeImg.hMiddle : hedgeImg.hVert;
+      const capStartImg = s.orient==='h' ? hedgeImg.hLeft  : hedgeImg.vTop;
+      const capEndImg   = s.orient==='h' ? hedgeImg.hRight : hedgeImg.vBottom;
+      if (n===1 && startDead && endDead){
+        // A fully isolated 1-cell stub: no interior half at all, just the two open tips
+        // meeting in the middle -- each gets its own square, so nothing overlaps.
+        place(capStartImg, slotStart, crossPx, sq);
+        place(capEndImg, slotStart + sq, crossPx, sq);
+      } else if (i===0 && startDead){
+        // outer square (toward the dead tip) is the cap; inner square continues into the strip
+        place(capStartImg, slotStart, crossPx, sq);
+        place(midImg, slotStart + sq, crossPx, sq);
+      } else if (i===n-1 && endDead){
+        place(midImg, slotStart, crossPx, sq);
+        place(capEndImg, slotStart + sq, crossPx, sq);
+      } else {
+        place(midImg, slotStart, crossPx, sq);
+        place(midImg, slotStart + sq, crossPx, sq);
+      }
+    }
+  }
+  function hedgeDrawCorner(g, cj, ox, oy, cs, scale, phase){
+    if (!hedgePointKnown(cj.x, cj.y)) return;
+    const img = hedgeImg.corner;
+    const w = img.width*scale*HEDGE_JUNCTION_FRAC + HEDGE_SEAM_OVERLAP_NATIVE*scale;
+    const h = img.height*scale*HEDGE_JUNCTION_FRAC + HEDGE_SEAM_OVERLAP_NATIVE*scale;
+    const px = cj.x*cs - ox, py = cj.y*cs - oy;
+    // Centered on the junction point -- matches hedgeDrawTStop's convention and the strips'
+    // symmetric cross-axis centering. The old per-rotation quadrant offset (dx/dy picked
+    // per cj.rot to place the tile entirely in one quadrant) left the box straddling the
+    // wrong side of the point, producing a squared-off overhang/notch at every corner --
+    // this was the real cause of the "corners overlapping" reports, confirmed via a PIL
+    // repro of this exact placement math against the real tile art. Centering removes the
+    // notch cleanly on all 4 rotations. Grown by the same seam-overlap amount as the strip
+    // squares (hedgeDrawStrip's place()) so the corner's own border-wrap sliver doesn't show
+    // as a seam where it meets the adjoining straight run.
+    // The corner casts its own shadow too now, same as every other tile -- safe because
+    // drawHedgeTiles renders in two full passes (every shadow, then every body). A corner's
+    // shadow used to get drawn inline with its body, right after the neighboring middle/endcap
+    // had already painted its own opaque body -- so the corner's shadow landed on top of that
+    // already-finished neighbor and showed up as a doubled/misaligned dark patch at the joint.
+    // With bodies deferred to a second pass, whatever a shadow oversteps onto a neighbor's
+    // footprint just gets cleanly capped by that neighbor's own body afterward, so the shadow
+    // can safely reach all the way to the corner's true edge.
+    if (phase === 'shadow') hedgeDrawTileShadow(g, img, px - w/2, py - h/2, w, h, cj.rot, scale);
+    else hedgeDrawTileBody(g, img, px - w/2, py - h/2, w, h, cj.rot, scale);
+  }
+  function hedgeDrawTStop(g, tj, ox, oy, cs, scale, phase){
+    if (!hedgePointKnown(tj.x, tj.y)) return;
+    const img = hedgeImg.tStop;
+    const w = img.width*scale*HEDGE_JUNCTION_FRAC + HEDGE_SEAM_OVERLAP_NATIVE*scale;
+    const h = img.height*scale*HEDGE_JUNCTION_FRAC + HEDGE_SEAM_OVERLAP_NATIVE*scale;
+    const px = tj.x*cs - ox, py = tj.y*cs - oy;
+    if (phase === 'shadow') hedgeDrawTileShadow(g, img, px - w/2, py - h/2, w, h, tj.rot, scale);
+    else hedgeDrawTileBody(g, img, px - w/2, py - h/2, w, h, tj.rot, scale);
+  }
+  function hedgeDrawPlus(g, x, y, ox, oy, cs, scale, phase){
+    if (!hedgePointKnown(x, y)) return;
+    const r = (hedgeImg.hMiddle.height*scale*HEDGE_JUNCTION_FRAC)/2 * 0.9;
+    const px = x*cs - ox, py = y*cs - oy;
+    const offsetPx = HEDGE_SHADOW_OFFSET_NATIVE*scale;
+    if (phase === 'shadow'){
+      g.fillStyle = GARDEN.hedgeLo;
+      g.beginPath(); g.ellipse(px, py+offsetPx, r, r, 0, 0, Math.PI*2); g.fill();
+      return;
+    }
+    g.fillStyle = GARDEN.hedgeLo;
+    g.beginPath(); g.ellipse(px, py, r, r, 0, 0, Math.PI*2); g.fill();
+    const r2 = r*0.68;
+    g.fillStyle = GARDEN.hedgeMid;
+    g.beginPath(); g.ellipse(px, py, r2, r2, 0, 0, Math.PI*2); g.fill();
+  }
+  function drawHedgeTiles(g, ox, oy){
+    if (!hedgeTilesReady) return;
+    if (hedgeLevelVer !== levelVer) rebuildHedgeGeometry();
+    const cs = cellSize, scale = cs / HEDGE_NATIVE_CELL;
+    // Two full passes -- every shadow, then every body -- instead of shadow+body per tile.
+    // Guarantees a tile's opaque art always caps whatever shadow lands on its footprint
+    // (its own or a neighbor's overspill), regardless of draw order between strips/corners/
+    // T-stops/plus. See hedgeDrawCorner for why this was needed.
+    hedgeStrips.forEach(s => hedgeDrawStrip(g, s, ox, oy, cs, scale, 'shadow'));
+    hedgeCorners.forEach(cj => hedgeDrawCorner(g, cj, ox, oy, cs, scale, 'shadow'));
+    hedgeTStops.forEach(tj => hedgeDrawTStop(g, tj, ox, oy, cs, scale, 'shadow'));
+    hedgePlus.forEach(p => hedgeDrawPlus(g, p.x, p.y, ox, oy, cs, scale, 'shadow'));
+    hedgeStrips.forEach(s => hedgeDrawStrip(g, s, ox, oy, cs, scale, 'body'));
+    hedgeCorners.forEach(cj => hedgeDrawCorner(g, cj, ox, oy, cs, scale, 'body'));
+    hedgeTStops.forEach(tj => hedgeDrawTStop(g, tj, ox, oy, cs, scale, 'body'));
+    hedgePlus.forEach(p => hedgeDrawPlus(g, p.x, p.y, ox, oy, cs, scale, 'body'));
+  }
+
   /* The hedge silhouette. The body is one rounded rectangle per wall rather than a
      chain of circles — a capsule either way, but fifteen times fewer subpaths, which
      is the difference between a bake you notice and one you do not. The scallops stay
@@ -2581,6 +2944,23 @@
      their neighbours slightly, because an exactly abutting seam antialiases into a
      visible lattice. The field runs two cells past the layer, so nothing at the frame
      has an outside and the sheet reaches the edge flush. */
+  // Hard boundary for the cloud layer: exact, un-rounded cell squares for every still-
+  // foggy cell. gardenFog's own sheets use rounding, inset, and small per-sheet offsets
+  // (the hand-torn-paper look, plus a drop shadow on the lowest sheet) that can spill a
+  // few px past a cell's true edge -- invisible between two foggy cells, but visible as
+  // a stray white/gray sliver when that spill lands on an already-seen cell sitting next
+  // to a freshly revealed hedge corner (a corner's rounded art leaves a bit of that
+  // neighbour cell's edge uncovered, unlike a straight run's wall thickness). Clipping
+  // the whole cloud pass to this mask stops any sheet from ever painting past a cell
+  // that isn't actually still foggy, without touching reveal timing.
+  function gardenFogMask(g, ox, oy, c0, r0, c1, r1){
+    const s = cellSize;
+    g.beginPath();
+    for (let r=r0-2; r<=r1+2; r++) for (let c=c0-2; c<=c1+2; c++){
+      if (!gFoggy(c,r)) continue;
+      g.rect(c*s - ox, r*s - oy, s, s);
+    }
+  }
   function gardenFog(g, ox, oy, c0, r0, c1, r1, rad, inset){
     const s = cellSize, ov = Math.max(0.6, s*0.014), ins = inset || 0;
     g.beginPath();
@@ -2676,25 +3056,25 @@
       }
     }
 
-    // the hedge: a shadow on the grass, then three sheets
-    g.save();
-    g.shadowColor = GARDEN.cast; g.shadowBlur = 9*k;
-    g.shadowOffsetX = 3*k; g.shadowOffsetY = 7*k;
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 1.06);
-    g.fillStyle = GARDEN.hedgeLo; g.fill();
-    g.restore();
-    g.save(); g.translate(-1.5*k, -4.5*k);
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 0.94);
-    g.fillStyle = GARDEN.hedgeMid; g.fill();
-    g.save(); g.clip();
-    g.fillStyle = cardAnchor(paperTile(), ox + 1.5*k, oy + 4.5*k); g.fillRect(0,0,w,h);
-    g.restore(); g.restore();
-    g.save(); g.translate(-3*k, -9*k);
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 0.74);
-    g.fillStyle = GARDEN.hedgeHi; g.fill();
-    g.restore();
+    // the hedge: PNG stamps (middle/endcap/corner/t-stop), rotated to fit and each with
+    // its own baked-in drop shadow. Drawn BEFORE the cloud (the cloud used to be under the
+    // hedge, so any piece that was "known" -- even via the lenient any-touching-cell-seen
+    // rule -- always painted fully solid, visible right through fog that hadn't actually
+    // cleared over its own cell yet). Now the cloud is the top layer again, so a hedge
+    // piece only reads as fully revealed once the fog over its own footprint is gone --
+    // otherwise it's dimmed/hidden under cloud like everything else that isn't seen yet.
+    drawHedgeTiles(g, ox, oy);
 
-    // the cloud: the same three sheets, cut from the grid
+    // the cloud: the same three sheets, cut from the grid, clipped hard to the exact set
+    // of still-foggy cells (gardenFogMask) so none of the three sheets' blur/offset can
+    // spill onto an already-seen cell -- that's what used to read as fog "cutting off" a
+    // corner that had just been drawn. With the clip, a foggy cell's cloud can only ever
+    // cover that cell's own square, so it sits over an early-revealed hedge piece cleanly,
+    // right up to the cell boundary, instead of in some blobby shape that doesn't line up
+    // with the grid.
+    g.save();
+    gardenFogMask(g, ox, oy, c0, r0, c1, r1);
+    g.clip();
     g.save();
     g.shadowColor = GARDEN.cast; g.shadowBlur = 12*k;
     g.shadowOffsetX = 4*k; g.shadowOffsetY = 10*k;
@@ -2713,6 +3093,7 @@
     g.save(); g.clip();
     g.fillStyle = cardAnchor(paperTile(), ox + 9*k, oy + 13*k); g.fillRect(0,0,w,h);
     g.restore(); g.restore();
+    g.restore(); // fog mask clip
   }
 
   // only the things that move between steps
