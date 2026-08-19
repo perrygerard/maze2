@@ -2542,7 +2542,13 @@
     const c = t.getContext('2d');
     for (let i=0;i<420;i++){
       const mode = i%3;
-      c.fillStyle = mode===0 ? 'rgba(0,0,0,.16)' : mode===1 ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.08)';
+      // Higher alpha than a first pass at this used -- at these radii (under 2px) the
+      // dots are only a device pixel or two across once the canvas is scaled by devicePixelRatio,
+      // and at low opacity that little anti-aliased edge is most of the shape, so they
+      // read as a soft haze instead of distinct flecks. Punching up the opacity gives
+      // each one enough contrast against hedgeMid to still land as a solid fleck at
+      // that size, without changing how big or how many there are.
+      c.fillStyle = mode===0 ? 'rgba(0,0,0,.45)' : mode===1 ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.25)';
       const r = 0.7 + hash(i,52)*1.2;
       c.beginPath(); c.arc(hash(i,50)*96, hash(i,51)*96, r, 0, Math.PI*2); c.fill();
     }
@@ -2947,6 +2953,269 @@
      cast the offset drop shadow from a plain straight-edged shape instead of a copy of
      the bushy silhouette (a canvas shadow is always a copy of whatever it's attached to,
      so casting it from the bushy path would mirror every bump into the shadow too). */
+  // hedgeDegAt is purely topological -- built once per level from the full maze, with
+  // no idea which cells are actually revealed yet. That's fine for whether a tip is a
+  // true dead end structurally, but it isn't fine for deciding whether to ROUND that
+  // tip right now: at a real bend, both segments meeting the vertex round fully and
+  // rely on each other's overlap to look joined. If only one of the two has cleared
+  // its own known() check so far, the other isn't drawn at all yet -- so the one that
+  // is drawn still rounds as if a partner were there, leaving an unattached round nub
+  // poking out toward the fog. hedgeLiveDegAt recomputes degree from what's actually
+  // being drawn this frame (mirroring the same known()-style gate the main loop uses
+  // for each of the up to four segments that could meet a vertex), so a segment whose
+  // partner hasn't been revealed yet correctly reads as a dead end -- small bevel, not
+  // a floating round cap -- until that partner shows up and it can round again.
+  function hedgeSegDrawn(c, r, side){
+    if (c < 0 || c >= cols || r < 0 || r >= rows) return false;
+    const i = idx(c,r), w = cells[i].walls, seenSelf = gSeen(i);
+    if (side === 'N') return !!w[0] && (seenSelf || (r-1 >= 0 && gSeen(idx(c,r-1))));
+    if (side === 'W') return !!w[3] && (seenSelf || (c-1 >= 0 && gSeen(idx(c-1,r))));
+    if (side === 'E') return c === cols-1 && !!w[1] && seenSelf;
+    if (side === 'S') return r === rows-1 && !!w[2] && seenSelf;
+    return false;
+  }
+  function hedgeLiveDegAt(gx, gy){
+    let n = 0;
+    if (hedgeSegDrawn(gx,   gy,   'N')) n++;   // north wall of (gx,gy): (gx,gy)-(gx+1,gy)
+    if (hedgeSegDrawn(gx-1, gy,   'N')) n++;   // north wall of (gx-1,gy): (gx-1,gy)-(gx,gy)
+    if (hedgeSegDrawn(gx,   gy,   'W')) n++;   // west wall of (gx,gy): (gx,gy)-(gx,gy+1)
+    if (hedgeSegDrawn(gx,   gy-1, 'W')) n++;   // west wall of (gx,gy-1): (gx,gy-1)-(gx,gy)
+    if (hedgeSegDrawn(gx-1, gy,   'E')) n++;   // right-boundary wall of (gx-1,gy), touching (gx,gy) as its near/top end
+    if (hedgeSegDrawn(gx-1, gy-1, 'E')) n++;   // right-boundary wall of (gx-1,gy-1), touching (gx,gy) as its far/bottom end
+    if (hedgeSegDrawn(gx,   gy-1, 'S')) n++;   // bottom-boundary wall of (gx,gy-1), touching (gx,gy) as its near/left end
+    if (hedgeSegDrawn(gx-1, gy-1, 'S')) n++;   // bottom-boundary wall of (gx-1,gy-1), touching (gx,gy) as its far/right end
+    return n;
+  }
+  /* ---- a bushy, hedge-styled version of the card world's stroke wall ------------
+     Reuses drawCardWalls' topology handling (segment trimming at dead ends, hub
+     filling at junctions) since that's what keeps a short dead-end stub from
+     overshooting into a wide, poking-out tab -- a thin trimmed stroke, not a filled
+     capsule. The card-specific surface (flute wave, liner bands) is swapped for a
+     scalloped bump texture and a two-tone rim/fill, the same visual language the
+     original capsule-based gardenHedge used, so it reads as clipped foliage instead
+     of corrugated board.
+     -------------------------------------------------------------------------- */
+  function drawHedgeWalls(g, segs, cs, k, wox, woy, pal, w, h){
+    if (!segs.length) return;
+    const th0 = Math.max(5, cs*0.357), growPx = 2;
+    const capKey = (x,y) => Math.round(x*4)+','+Math.round(y*4);
+    const capCount = new Map(), capAxes = new Map();
+    for (let n=0;n<segs.length;n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+      [[x1,y1],[x2,y2]].forEach(([px,py]) => {
+        const kk = capKey(px,py);
+        capCount.set(kk, (capCount.get(kk)||0)+1);
+        if (!capAxes.has(kk)) capAxes.set(kk, new Set());
+        capAxes.get(kk).add(axis);
+      });
+    }
+    const isJunction = (x,y) => (capAxes.get(capKey(x,y))||new Set()).size > 1;
+    const isDeadEnd  = (x,y) => capCount.get(capKey(x,y)) === 1;
+    // A plain 2-way bend (exactly one horizontal and one vertical segment, nothing
+    // else, touching this point) vs. a T or cross (3-4 segments touching, even if
+    // only 2 distinct axes) -- isJunction alone can't tell these apart, since a
+    // straight-through wall with a branch off it still has exactly 2 axes.
+    const isSimpleBend = (x,y) => capCount.get(capKey(x,y)) === 2 && isJunction(x,y);
+    // At a simple bend, the vertical segment's OTHER endpoint tells us which side
+    // (up or down) its wall body occupies relative to the joint. The horizontal
+    // (reaching) segment's corner on THAT side has to stay sharp -- the vertical
+    // wall stops short of the joint by design (see endShift below), so nothing
+    // backfills whatever a rounded corner there would carve away. Only the corner
+    // on the opposite side is genuinely open/outer and safe to round.
+    const otherEndV = new Map();
+    for (let n=0;n<segs.length;n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+      if (axis === 'v'){
+        otherEndV.set(capKey(x1,y1), {x:x2,y:y2});
+        otherEndV.set(capKey(x2,y2), {x:x1,y:y1});
+      }
+    }
+    const fitTrim = (st, et, len) => {
+      const total = st + et;
+      if (total <= len*0.9) return [st, et];
+      const f = (len*0.9) / (total || 1);
+      return [st*f, et*f];
+    };
+    const endShift = (x, y, axis, lw) => {
+      // Scaled by THIS layer's own lw (not the fixed halfT) so the grown rim layer
+      // reaches/pulls back further than the top layer by the same growPx it's wider
+      // by -- otherwise rim and top end up trimmed to the identical length-wise
+      // point at every junction, and the rim (which is only wider, never longer)
+      // has nothing left to peek out from under the top layer along the curve.
+      if (isJunction(x,y)) return axis === 'h' ? -lw/2 : lw/2;
+      // Dead ends pull the straight part of the rectangle IN before the cap radius
+      // rounds it, and that pull-back has to shrink -- not grow -- as the layer gets
+      // wider, or the two corrections double up in the same direction. The reach
+      // case above and this pull-back case both move the tip by half this layer's
+      // own width, but reach ADDS that to the raw endpoint while pull-back
+      // SUBTRACTS it -- so growing lw pushes a reaching tip further out (which is
+      // exactly what growing the corner radius by the same amount needs to stay
+      // centered on it) while it pulls a dead-end tip further in (which fights the
+      // radius growth instead of matching it). Subtracting the growth here instead
+      // of adding it keeps the cap's rounded center in the same place regardless of
+      // which layer is drawing it, same as the reach case above.
+      if (isDeadEnd(x,y)) { const grow = (lw - th0)/2; return th0/2 - grow; }
+      return 0;
+    };
+    const shiftPair = (sd, ed, len) => {
+      const [cs_, ce_] = fitTrim(Math.max(0,sd), Math.max(0,ed), len);
+      return [sd > 0 ? cs_ : sd, ed > 0 ? ce_ : ed];
+    };
+    const trimmedEnds = (x1,y1,x2,y2,lw) => {
+      const len = Math.hypot(x2-x1,y2-y1) || 1, ux=(x2-x1)/len, uy=(y2-y1)/len;
+      const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+      const [sd, ed] = shiftPair(endShift(x1,y1,axis,lw), endShift(x2,y2,axis,lw), len);
+      return [x1+ux*sd, y1+uy*sd, x2-ux*ed, y2-uy*ed];
+    };
+    // Bevel radii: a small curve at true dead ends (capR) and at real corners/T/cross
+    // junctions (bevelR), but NOT at a plain seam where two collinear same-axis
+    // segments just happen to meet (a straight run split across cell boundaries) --
+    // isJunction is false there since only one axis touches that point, so it falls
+    // through to 0 and the two segments still meet perfectly flush. Rounding that
+    // seam too (an earlier version of this did) carves a small notch out of an
+    // otherwise straight wall, since each segment's end curves away independently
+    // with nothing on the other side to fill the gap it leaves.
+    const capR = 3, bevelR = 5;
+    // Only the REACHING side of a plain 2-way bend gets rounded -- the pulled-back
+    // side's corner sits entirely underneath the reaching side's footprint anyway
+    // (that's the whole point of the hub-claiming trim), so rounding it too was
+    // never visible, just redundant. At a T or cross (isSimpleBend false) neither
+    // side rounds at all: with 3+ segments sharing that point, whichever one reaches
+    // can only cover its OWN width across the hub, not the full gap left by every
+    // through-segment pulling back, so a rounded corner there doesn't fully close --
+    // a small notch, the same shape of bug as the original overshoot bulge, just
+    // inverted (a bite taken out instead of a tab sticking out).
+    // Radii also grow with lw (by the same amount the layer's width grew past th0),
+    // matching the endShift change above -- with a fixed radius but a reach/width
+    // that's now longer by growPx, the rim's arc would just be top's arc translated
+    // sideways rather than a true concentric offset, which stays visible as a border
+    // along one part of the curve and vanishes (or worse, tucks under top) on the
+    // opposite part. Growing the radius by the same growPx keeps both layers' arcs
+    // centered on the same point, so the rim traces a uniform ring around the curve.
+    const radiusFor = (x, y, axis, lw) => {
+      const grow = (lw - th0)/2;
+      if (isDeadEnd(x,y)) return capR + grow;
+      if (isSimpleBend(x,y) && axis === 'h') return bevelR + grow;
+      return 0;
+    };
+    // Per-corner version for horizontal segments: even at a plain 2-way bend, the
+    // reaching end has TWO corners (top and bottom), and only one of them is truly
+    // outer. The other sits flush against wherever the attached vertical wall's body
+    // is, and that vertical wall stops short of the joint (its own pull-back trim),
+    // so a rounded corner on that side carves out a gap nothing else fills. Returns
+    // [topR, botR] for the corner at point (px,py).
+    const hRadii = (px, py, lw) => {
+      const grow = (lw - th0)/2;
+      if (isDeadEnd(px,py)) { const r = capR + grow; return [r, r]; }
+      if (isSimpleBend(px,py)){
+        const v = otherEndV.get(capKey(px,py));
+        if (v) { const r = bevelR + grow; return v.y < py ? [0, r] : [r, 0]; }
+      }
+      return [0, 0];
+    };
+    // ctx2 is a parameter rather than closing over `g` directly, so the top layer can
+    // be redrawn a second time onto its own scratch canvas for the speckle pass below
+    // without duplicating this logic. Filled rounded boxes instead of a stroked line
+    // -- a stroke's cap/join can't carry two independent per-end radii the way
+    // roundRect's four corner radii can, which is what lets a dead end and a junction
+    // at the two opposite ends of the same segment bevel differently.
+    const box = (ctx2, lw, col, dx, dy) => {
+      ctx2.fillStyle = col;
+      ctx2.beginPath();
+      for (let n=0;n<segs.length;n+=4){
+        const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+        const axis = Math.abs(x2-x1) >= Math.abs(y2-y1) ? 'h' : 'v';
+        const [tx1,ty1,tx2,ty2] = trimmedEnds(x1,y1,x2,y2, lw);
+        // segs are stored low-to-high (x then y) and trimming only moves endpoints
+        // inward, so tx1<=tx2 (horizontal) / ty1<=ty2 (vertical) always holds --
+        // x1,y1 is always the near/left (or top) point, x2,y2 the far/right (or
+        // bottom) one. Horizontal segments use hRadii for independent top/bottom
+        // corner radii at each end (see comment above); vertical segments still use
+        // the simpler radiusFor since they only ever round at true dead ends.
+        if (axis === 'h'){
+          const [aTop, aBot] = hRadii(x1,y1,lw), [bTop, bBot] = hRadii(x2,y2,lw);
+          ctx2.roundRect(tx1+dx, y1-lw/2+dy, tx2-tx1, lw, [aTop,bTop,bBot,aBot]);
+        } else {
+          const rA = radiusFor(x1,y1,axis,lw), rB = radiusFor(x2,y2,axis,lw);
+          ctx2.roundRect(x1-lw/2+dx, ty1+dy, lw, ty2-ty1, [rA,rA,rB,rB]);
+        }
+      }
+      ctx2.fill();
+    };
+    const wk = cs/42;
+    // grounded offset shadow, same steep throw the other two worlds' walls use
+    g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
+    box(g, th0 + growPx*2, pal.shadow + '1)', 1.5*wk, 4.5*wk);
+    g.restore();
+    // many small, irregular bumps rather than a few large ones -- same technique the
+    // original capsule-based gardenHedge used, just seeded per trimmed segment here
+    // instead of per cell, and layered onto the stroke silhouette as decoration
+    // rather than defining it. Placed on the UNTRIMMED span so a short dead-end
+    // stub still gets its own little cluster of tufts instead of none at all.
+    const bumps = (ctx2, th, grow, col) => {
+      ctx2.fillStyle = col;
+      ctx2.beginPath();
+      for (let n=0;n<segs.length;n+=4){
+        const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+        const horiz = Math.abs(x2-x1) >= Math.abs(y2-y1);
+        const seed = x1*131.7 + y1*57.3 + x2*7.1 + y2*3.3;
+        const step = Math.max(5, cs*0.24);
+        const len = Math.hypot(x2-x1,y2-y1) || 1;
+        const x0 = Math.min(x1,x2), y0 = Math.min(y1,y2);
+        for (let m = 0; step*(m + 0.5) < len; m++){
+          const d = step*(m + 0.5);
+          const j = (hash(seed + m*7.71, 5) - 0.5)*step*0.5;
+          const k1 = hash(seed + m*4.13, 3), k2 = hash(seed + m*5.91, 9);
+          const rr1 = th0*(0.14 + k1*0.20) + grow, rr2 = th0*(0.14 + k2*0.20) + grow;
+          const push1 = th/2 - rr1*0.70, push2 = th/2 - rr2*0.70;
+          if (horiz){
+            ctx2.moveTo(x0+d+j+rr1, y1-push1); ctx2.arc(x0+d+j, y1-push1, rr1, 0, 7);
+            ctx2.moveTo(x0+d+j+rr2, y1+push2); ctx2.arc(x0+d+j, y1+push2, rr2, 0, 7);
+          } else {
+            ctx2.moveTo(x1-push1+rr1, y0+d+j); ctx2.arc(x1-push1, y0+d+j, rr1, 0, 7);
+            ctx2.moveTo(x1+push2+rr2, y0+d+j); ctx2.arc(x1+push2, y0+d+j, rr2, 0, 7);
+          }
+        }
+      }
+      ctx2.fill();
+    };
+    // HEDGE_WALL_BUMPS: false for clean straight edges, true for the scalloped bushy
+    // look -- the trim/junction logic above is unaffected either way, since the bumps
+    // are decoration layered on top of the stroke silhouette, not part of it.
+    const HEDGE_WALL_BUMPS = false;
+    // dark rim (grown 2px border, same fixed amount the old hedge used) straight onto
+    // the real context -- it's a flat colour, nothing to speckle
+    box(g, th0 + growPx*2, pal.wallBase, 0, 0);
+    if (HEDGE_WALL_BUMPS) bumps(g, th0 + growPx*2, growPx, pal.wallBase);
+    // the lighter top fill, trimmed the same way so its tip is flush against the rim.
+    // Speckle only belongs on this layer, and 'source-atop' paints over EVERYTHING
+    // already on the destination -- grass, path, the rim we just drew -- not just
+    // whatever we drew most recently. So the top fill is built on its own blank
+    // scratch canvas first, speckled there in isolation, then the whole result is
+    // composited onto the real context in one drawImage -- same visual effect as the
+    // old capsule-fill's g.clip(), which doesn't apply here since a stroke plus loose
+    // bump circles isn't one closed path a clip could capture.
+    if (w !== undefined && h !== undefined){
+      const tmp = document.createElement('canvas');
+      tmp.width = Math.max(1, Math.ceil(w));
+      tmp.height = Math.max(1, Math.ceil(h));
+      const tg = tmp.getContext('2d');
+      box(tg, th0, pal.wallLiner, 0, 0);
+      if (HEDGE_WALL_BUMPS) bumps(tg, th0, 0, pal.wallLiner);
+      tg.save();
+      tg.globalCompositeOperation = 'source-atop';
+      tg.fillStyle = cardAnchor(hedgeSpeckle(), wox, woy);
+      tg.fillRect(0, 0, w, h);
+      tg.restore();
+      g.drawImage(tmp, 0, 0);
+    } else {
+      box(g, th0, pal.wallLiner, 0, 0);
+      if (HEDGE_WALL_BUMPS) bumps(g, th0, 0, pal.wallLiner);
+    }
+  }
+
   function gardenHedge(g, ox, oy, c0, r0, c1, r1, layer, bumps, wallExtend){
     if (bumps === undefined) bumps = true;
     if (wallExtend === undefined) wallExtend = 0;
@@ -2955,7 +3224,8 @@
     // Degree 1 is a true dead end: nothing continues past it, so that tip is squared off.
     // Degree 2+ is a straight-through point, a bend, a T, or a cross -- something keeps
     // going, so that end stays rounded and gets fused into the join by the overlap, same
-    // as before.
+    // as before. gardenHedge itself uses hedgeLiveDegAt (below), the fog-aware version,
+    // for the actual rounding decision.
     if (hedgeLevelVer !== levelVer) rebuildHedgeGeometry();
     const s = cellSize;
     const th0 = Math.max(5, s*0.357);
@@ -2980,16 +3250,34 @@
       // longer share the same size/offset draw (they used to be mirrored, one just
       // 0.9x the other) -- decorrelating them breaks the "paired twin blob" look.
       const run = (x0, y0, horiz, seed, gx0, gy0, gx1, gy1) => {
-        const rFull = th/2, capR = 3;   // small bevel on true dead ends, not fully square
-        const rA = hedgeDegAt(gx0, gy0) === 1 ? capR : rFull;
-        const rB = hedgeDegAt(gx1, gy1) === 1 ? capR : rFull;
+        const capR = 3;   // small bevel on true dead ends, not fully square
+        // Every join (bend, T, cross) is squared off rather than rounded at rFull.
+        // A short 1-cell dead-end stub off a T-junction is barely longer than it is
+        // wide, so rounding BOTH its base (the join) and its tip made it read as a
+        // separate round blob pinched onto the wall instead of part of it. Squaring
+        // the join just fills the box's own rectangle there instead of drawing a
+        // separate arc, so the stub flows out flush like a notch -- closer to how a
+        // thin centerline stroke with a mitered join (no flare at the joint at all)
+        // reads. This also incidentally fixed the old wallExtend overshoot bulge at
+        // live joins on vertical segments, since squared now applies there too.
+        const joinR = 0;
+        const rA = hedgeLiveDegAt(gx0, gy0) <= 1 ? capR : joinR;
+        const rB = hedgeLiveDegAt(gx1, gy1) <= 1 ? capR : joinR;
         // wallExtend stretches the south edge of the capsule's own box straight down
-        // (no horizontal shift) -- same silhouette as the rim everywhere else, so it's
-        // flush-attached with no gap, and only the extra height peeks out below/beside
-        // the rim. That reads as the hedge's own solid side face; a canvas shadow
-        // (offset + blur) reads as a shape cast away from the object instead.
+        // (no horizontal shift). For a horizontal segment that's purely a thickness
+        // change -- its left/right reach never moves, so it can't overshoot a join no
+        // matter what's rounded there. For a vertical segment it's a length change:
+        // the box's own south edge is what gets pushed past the far vertex. Squaring
+        // that corner (above) stopped it from drawing a separate arc out there, but
+        // the box itself was still reaching past the vertex -- a flush square nub
+        // instead of a round one, same overshoot. If that far vertex is a live join,
+        // there's nothing structurally there to sit on, and the segment on the other
+        // side of that join covers its own footprint, not this one's overshoot -- so
+        // only extend a vertical segment's far end when it's actually a dead end
+        // (where reading as a grounded foot is the point).
+        const vExtend = (!horiz && wallExtend > 0 && hedgeLiveDegAt(gx1, gy1) > 1) ? 0 : wallExtend;
         if (horiz) g.roundRect(x0 - th/2 - grow, y0 - th/2, s + th + grow*2, th + wallExtend, [rA, rB, rB, rA]);
-        else       g.roundRect(x0 - th/2, y0 - th/2 - grow, th, s + th + grow*2 + wallExtend, [rA, rA, rB, rB]);
+        else       g.roundRect(x0 - th/2, y0 - th/2 - grow, th, s + th + grow*2 + vExtend, [rA, rA, rB, rB]);
         if (!bumps) return;   // wall-face pass: straight capsule only, no scallops
         const step = Math.max(5, cellSize*0.24);
         for (let n = 0; step*(n + 0.5) < s; n++){
@@ -3105,12 +3393,9 @@
     // not chopped off by it. The rim + top (the wall's actual standing body) still draw
     // after the path further down, so the wall itself correctly covers the trail if they
     // ever truly overlap -- only the extruded "shadow" area yields to the path.
-    g.save();
-    const wallH = 16*k;
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'dark', false, wallH);
-    g.fillStyle = GARDEN.hedgeLo;
-    g.fill();
-    g.restore();
+    // The card world's stroke-based wall renderer (drawCardWalls) is used below,
+    // after the path -- it draws its own offset shadow, so no separate extrusion
+    // pass is needed here the way gardenHedge's capsule fill required.
 
     // the path you have laid, under everything else on the ground
     g.lineCap = 'round'; g.lineJoin = 'round';
@@ -3148,23 +3433,44 @@
     // fully revealed once the fog over its own footprint is gone -- otherwise it's
     // dimmed/hidden under cloud like everything else that isn't seen yet.
     // (The wall-face extrusion itself was already drawn above, before the path, so the
-    // trail reads in front of it.) The bushy dark rim goes now -- no shadow properties
-    // active here, just the uniform grown-outward peek border, textured to match the
-    // top layer.
-    g.save();
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'dark');
-    g.fillStyle = GARDEN.hedgeLo;
-    g.fill();
-    g.restore();
-    g.save();
-    gardenHedge(g, ox, oy, c0, r0, c1, r1, 'top');
-    g.fillStyle = GARDEN.hedgeMid;
-    g.fill();
-    g.save(); g.clip();
-    g.fillStyle = cardAnchor(hedgeSpeckle(), ox, oy);
-    g.fillRect(0,0,w,h);
-    g.restore();
-    g.restore();
+    // trail reads in front of it.) The dark rim goes now -- no shadow properties
+    // active here, just the uniform grown-outward peek border.
+    // HEDGE_BUMPS: false for clean straight-edged walls (no scallop texture), true
+    // for the bushy hand-drawn look -- flip this one flag to compare the two.
+    // The hedge wall, drawn with the same stroke-based corrugated-wall renderer the
+    // card world uses (drawCardWalls) instead of gardenHedge's capsule fill. A short
+    // dead-end stub reads as a thin flush line-ending here rather than a wide rounded
+    // (or squared) capsule tab, so it no longer stands out as a separate poking-out
+    // shape the way the capsule technique's stubs did -- same maze, same dead-end
+    // count, far less visually prominent. Recoloured green via the pal argument
+    // instead of card's cardboard palette; the geometry/trim logic is untouched.
+    const HEDGE_WALL_PAL = { shadow:'rgba(38,64,30,', wallBase:GARDEN.hedgeLo, wallLiner:GARDEN.hedgeMid };
+    {
+      const rawSegs = [];
+      for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
+        const i = idx(c,r), wl = cells[i].walls;
+        const x = c*s - ox, y = r*s - oy;
+        const known2 = (dc,dr) => {
+          if (gSeen(i)) return true;
+          const nc = c+dc, nr = r+dr;
+          return nc>=0 && nc<cols && nr>=0 && nr<rows && gSeen(idx(nc,nr));
+        };
+        if (wl[0] && known2(0,-1)) rawSegs.push(x, y, x+s, y);
+        if (wl[3] && known2(-1,0)) rawSegs.push(x, y, x, y+s);
+        if (wl[1] && known2(1,0))  rawSegs.push(x+s, y, x+s, y+s);
+        if (wl[2] && known2(0,1))  rawSegs.push(x, y+s, x+s, y+s);
+      }
+      const segMap = new Map();
+      for (let n=0;n<rawSegs.length;n+=4){
+        const x1=rawSegs[n],y1=rawSegs[n+1],x2=rawSegs[n+2],y2=rawSegs[n+3];
+        const a=[Math.round(x1*4),Math.round(y1*4)], b=[Math.round(x2*4),Math.round(y2*4)];
+        const [p,q] = (a[0]<b[0] || (a[0]===b[0] && a[1]<b[1])) ? [a,b] : [b,a];
+        segMap.set(p[0]+','+p[1]+','+q[0]+','+q[1], [x1,y1,x2,y2]);
+      }
+      const segs2 = [];
+      segMap.forEach(sv => segs2.push(sv[0],sv[1],sv[2],sv[3]));
+      drawHedgeWalls(g, segs2, s, k, ox, oy, HEDGE_WALL_PAL, w, h);
+    }
 
     // the cloud: three sheets, each clipped to the exact set of still-foggy cells
     // (gardenFogMask) so none of the three sheets' blur/offset can spill onto an
@@ -3766,8 +4072,9 @@
      size, k the caller's relief unit, and wox/woy the offset back to world space
      that keeps the flute phase from crawling as the view moves.
      -------------------------------------------------------------------------- */
-  function drawCardWalls(g, segs, cs, k, wox, woy){
+  function drawCardWalls(g, segs, cs, k, wox, woy, pal){
     if (!segs.length) return;
+    if (!pal) pal = CARD;
     const thick = Math.max(4, cs*0.33);
     const sk = thick / WALL_SVG.thick, bandH = WALL_SVG.band*sk, halfT = thick/2;
     // For every endpoint, which axes (horizontal / vertical) of wall touch it. A long
@@ -3825,10 +4132,10 @@
     // to have. wk is scoped to just this relief, separate from the card's own `k`
     // (cellSize/30) that everything else on the board still uses.
     const wk = cs/42;
-    line(thick, CARD.slot, 0.5*wk, 1.5*wk);                  // the slot it stands in
+    line(thick, pal.slot, 0.5*wk, 1.5*wk);                  // the slot it stands in
     g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
-    line(thick, CARD.shadow + '1)', 1.5*wk, 4.5*wk); g.restore();
-    line(thick, CARD.wallBase, 0, 0);                        // the wall's own custom art
+    line(thick, pal.shadow + '1)', 1.5*wk, 4.5*wk); g.restore();
+    line(thick, pal.wallBase, 0, 0);                        // the wall's own custom art
     // At a corner or T-join the two walls share a `thick` x `thick` hub square. Trimming
     // both sides back from it left that square carrying only the plain dark base — the
     // blank corners. So the horizontal wall now *claims* the hub: a horizontal segment
@@ -3861,8 +4168,8 @@
       }
       g.stroke();
     };
-    offsetLine(bandH, CARD.wallLiner, -halfT + bandH/2);     // top liner
-    offsetLine(bandH, CARD.wallLiner,  halfT - bandH/2);     // bottom liner
+    offsetLine(bandH, pal.wallLiner, -halfT + bandH/2);     // top liner
+    offsetLine(bandH, pal.wallLiner,  halfT - bandH/2);     // bottom liner
 
     // the flute wave, one segment at a time, each clipped to its own strip of wall —
     // the phase is anchored to world position (see wallFlutePhaseStart) so adjacent
@@ -3870,7 +4177,7 @@
     // overlapping in a hub draw the identical curve there. At a junction the clip
     // reaches out over the hub for a horizontal and pulls back for a vertical, so the
     // wave carries across the corner instead of stopping at its edge.
-    g.strokeStyle = CARD.wallLiner; g.lineWidth = WALL_SVG.stroke*sk;
+    g.strokeStyle = pal.wallLiner; g.lineWidth = WALL_SVG.stroke*sk;
     g.lineCap = 'round'; g.lineJoin = 'round';
     for (let n=0;n<segs.length;n+=4){
       const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
@@ -3896,7 +4203,7 @@
     // cap, and closing line all stop at exactly the same place.
     const capW = WALL_SVG.capW*sk;
     const tipLines = [];   // the straight closing line right at each cap's outer edge
-    g.fillStyle = CARD.wallLiner;
+    g.fillStyle = pal.wallLiner;
     g.beginPath();
     for (let n=0;n<segs.length;n+=4){
       const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
@@ -3920,7 +4227,7 @@
     // hang past the wall's end, which is the overhang this whole pass is removing.
     if (tipLines.length){
       const tw = Math.max(1.4, sk*1.4);
-      g.strokeStyle = CARD.wallLiner; g.lineWidth = tw; g.lineCap = 'butt';
+      g.strokeStyle = pal.wallLiner; g.lineWidth = tw; g.lineCap = 'butt';
       g.beginPath();
       for (let n=0;n<tipLines.length;n+=6){
         const ix = tipLines[n+4]*tw/2, iy = tipLines[n+5]*tw/2;
