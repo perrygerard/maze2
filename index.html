@@ -2530,27 +2530,44 @@
     return paperPat;
   }
 
-  // Same idea as paperTile(), but its own tighter, higher-contrast grain -- clipped onto
-  // just the hedge's top layer (see gardenHedge/bakeGarden) to break up the flat fill the
-  // way the hand-drawn stamp art's speckle used to, without needing per-season art. Fixed
-  // black/white flecks rather than a season colour, so it reads as texture on top of
-  // whichever hedgeMid is active instead of needing its own cache invalidation per season.
+  // Clipped onto just the hedge's top layer (see drawHedgeWalls/bakeGarden) to break up
+  // the flat fill the way the hand-drawn stamp art's speckle used to, without needing
+  // per-season art. One colour, not three, so it reads as shading/clipped-leaf shadow
+  // rather than confetti, and blocky irregular patches instead of round dots -- a coarse
+  // value-noise field (the same corner-lattice-plus-smoothstep interpolation as any
+  // standard value noise), sampled on a 2px grid and thresholded, so a patch's edges
+  // fall on that grid instead of tracing a smooth curve. The corner lattice wraps mod G,
+  // so the field is exactly periodic across the tile and the pattern repeats with no seam.
   let hedgeSpecklePat = null;
   function hedgeSpeckle(){
     if (hedgeSpecklePat) return hedgeSpecklePat;
-    const t = document.createElement('canvas'); t.width = t.height = 96;
+    // CELL has to stay a whole number of pixels -- the previous pass at "3x smaller"
+    // scaled it down to a fraction (2/3) right along with G, which kept the same
+    // proportions on paper but meant almost every block landed on a non-integer
+    // coordinate. fillRect at a fractional position isn't a hard-edged rect, it's
+    // partial pixel coverage blended with whatever's behind it, and with a block
+    // that small almost the whole block was that blended edge -- which is what read
+    // as a soft, low-res blur rather than a crisp patch. G is still tripled from the
+    // original pass at this (18) for the smaller patches; CELL stays a flat 1px
+    // (rounded down from 2/3) so every block is hard-edged, and THRESH is nudged up
+    // to keep the coverage from reading as denser now that patches are finer-grained.
+    const T = 96, G = 54, CELL = 1, THRESH = 0.70;
+    const t = document.createElement('canvas'); t.width = t.height = T;
     const c = t.getContext('2d');
-    for (let i=0;i<420;i++){
-      const mode = i%3;
-      // Higher alpha than a first pass at this used -- at these radii (under 2px) the
-      // dots are only a device pixel or two across once the canvas is scaled by devicePixelRatio,
-      // and at low opacity that little anti-aliased edge is most of the shape, so they
-      // read as a soft haze instead of distinct flecks. Punching up the opacity gives
-      // each one enough contrast against hedgeMid to still land as a solid fleck at
-      // that size, without changing how big or how many there are.
-      c.fillStyle = mode===0 ? 'rgba(0,0,0,.45)' : mode===1 ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.25)';
-      const r = 0.7 + hash(i,52)*1.2;
-      c.beginPath(); c.arc(hash(i,50)*96, hash(i,51)*96, r, 0, Math.PI*2); c.fill();
+    const corner = (gx,gy) => hash(((gx%G)+G)%G + 71.3*(((gy%G)+G)%G), 61);
+    const smooth = v => v*v*(3-2*v);
+    const noiseAt = (x,y) => {
+      const gx = x/T*G, gy = y/T*G;
+      const x0 = Math.floor(gx), y0 = Math.floor(gy);
+      const fx = smooth(gx-x0), fy = smooth(gy-y0);
+      const c00 = corner(x0,y0), c10 = corner(x0+1,y0), c01 = corner(x0,y0+1), c11 = corner(x0+1,y0+1);
+      return (c00*(1-fx)+c10*fx)*(1-fy) + (c01*(1-fx)+c11*fx)*fy;
+    };
+    c.fillStyle = 'rgba(20,36,14,.5)';
+    for (let y=0;y<T;y+=CELL){
+      for (let x=0;x<T;x+=CELL){
+        if (noiseAt(x+CELL/2, y+CELL/2) > THRESH) c.fillRect(x, y, CELL, CELL);
+      }
     }
     hedgeSpecklePat = ctx.createPattern(t, 'repeat');
     return hedgeSpecklePat;
@@ -3145,10 +3162,46 @@
       ctx2.fill();
     };
     const wk = cs/42;
-    // grounded offset shadow, same steep throw the other two worlds' walls use
-    g.save(); g.filter = 'blur(' + (2.8*k).toFixed(2) + 'px)'; g.globalAlpha = 0.4;
-    box(g, th0 + growPx*2, pal.shadow + '1)', 1.5*wk, 4.5*wk);
-    g.restore();
+    // Three layers now, back to front: a long, faint cast SHADOW; a short, solid
+    // WALL riser it's cast from; then the rim/HEDGE fill drawn further below. Each
+    // is swept from the wall's own footprint (offset 0,0 -- exactly where the rim
+    // is about to be drawn, so its corners land flush on the rim's own corners) out
+    // to its own throw in small steps, all in one opaque colour per layer. Step
+    // count scales with the actual pixel distance being swept (roughly one step per
+    // half pixel) so consecutive steps always overlap by more than the anti-aliased
+    // edge and fuse into one hard-edged solid shape, no matter how far a given layer
+    // throws at a given cell size -- a fixed step count that looked smooth at a
+    // short throw would visibly band at a longer one. Both are drawn before the
+    // rim/top below, so either one crossing under a neighbouring wall gets cut off
+    // by that wall's own opaque body, same as a real shadow would be interrupted by
+    // anything solid in its path.
+    const sweepSteps = (dx, dy) => Math.max(10, Math.ceil(Math.hypot(dx, dy) / 0.5));
+    // SHADOW: long throw, low opacity. Built on its own scratch canvas at full
+    // opacity first, then composited once at 0.25 -- setting globalAlpha to 0.25 for
+    // each of the many overlapping sweep steps directly would have every overlap
+    // between consecutive steps compound (each one blending semi-transparently over
+    // the last), banding the shadow into rings of increasing opacity instead of
+    // leaving it one flat, even 25% tone.
+    const LONG_SHADOW_MULT = 6;
+    const shadowDX = 1.5*wk*LONG_SHADOW_MULT, shadowDY = 4.5*wk*LONG_SHADOW_MULT;
+    const shadowSteps = sweepSteps(shadowDX, shadowDY);
+    const shadowTmp = document.createElement('canvas');
+    shadowTmp.width = Math.max(1, Math.ceil(w));
+    shadowTmp.height = Math.max(1, Math.ceil(h));
+    const shadowTg = shadowTmp.getContext('2d');
+    for (let i=0;i<=shadowSteps;i++){
+      const t = i/shadowSteps;
+      box(shadowTg, th0 + growPx*2, pal.shadow + '1)', shadowDX*t, shadowDY*t);
+    }
+    g.save(); g.globalAlpha = 0.25; g.drawImage(shadowTmp, 0, 0); g.restore();
+    // WALL: short throw, full opacity -- no banding risk at full opacity, so this
+    // one draws straight onto g instead of needing its own scratch canvas.
+    const wallDX = 1.5*wk, wallDY = 4.5*wk;
+    const wallSteps = sweepSteps(wallDX, wallDY);
+    for (let i=0;i<=wallSteps;i++){
+      const t = i/wallSteps;
+      box(g, th0 + growPx*2, pal.shadow + '1)', wallDX*t, wallDY*t);
+    }
     // many small, irregular bumps rather than a few large ones -- same technique the
     // original capsule-based gardenHedge used, just seeded per trimmed segment here
     // instead of per cell, and layered onto the stroke silhouette as decoration
@@ -3444,7 +3497,11 @@
     // shape the way the capsule technique's stubs did -- same maze, same dead-end
     // count, far less visually prominent. Recoloured green via the pal argument
     // instead of card's cardboard palette; the geometry/trim logic is untouched.
-    const HEDGE_WALL_PAL = { shadow:'rgba(38,64,30,', wallBase:GARDEN.hedgeLo, wallLiner:GARDEN.hedgeMid };
+    // shadow and wallBase (the rim/border) both pinned to the same #246534 -- one flat
+    // colour for both instead of GARDEN.hedgeLo for the border and a separate rgba for
+    // the shadow, so the solid wall face and the border it grows out of read as the
+    // same material rather than two shades that happen to be close.
+    const HEDGE_WALL_PAL = { shadow:'rgba(36,101,52,', wallBase:'#246534', wallLiner:GARDEN.hedgeMid };
     {
       const rawSegs = [];
       for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
