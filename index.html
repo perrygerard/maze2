@@ -48,19 +48,19 @@
   }
 
   .device.menu .topbar{display:none;}
-  /* The status bar sits at the foot of the board in the same white rounded panel the
-     world-select cards use, so the two screens share one piece of furniture instead of
-     each having their own. It keeps clear of the device edges the same way the card
-     foot does, and carries the safe-area inset on its margin rather than its padding —
-     on a notched phone that lifts the whole panel instead of stretching it taller.
-     The light meter sits inset inside that panel, with its own breathing room on every
-     side, rather than running flush to the panel's own edge — it reads as one more
-     thing the panel is holding, not as part of the panel's own shape. */
+  /* Back at the head of the board, where it originally sat -- a white panel hanging
+     from the top edge, flat all the way across (no corner radius on any side) rather
+     than rounded at the bottom. Carries the safe-area inset on its top padding
+     instead of a bottom one now, so a notch or status bar doesn't crowd the
+     LVL/goal/time row. The light meter sits inset inside that panel below the row
+     that shows what it buys, with its own breathing room on every side, rather than
+     running flush to the panel's own edge — it reads as one more thing the panel is
+     holding, not as part of the panel's own shape. */
   .topbar{
-    position:absolute;left:0;right:0;bottom:0;
+    position:absolute;left:0;right:0;top:0;
     display:flex;flex-direction:column;gap:16px;
-    padding:4px 4px max(26px,calc(env(safe-area-inset-bottom) + 14px));
-    background:#faf8f3;border-radius:0px;
+    padding:max(20px,calc(env(safe-area-inset-top) + 10px)) 4px 4px;
+    background:#faf8f3;border-radius:0;
     box-shadow:0 16px 40px -10px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.10);
     z-index:5;
   }
@@ -70,9 +70,12 @@
   .track.low{box-shadow:0 0 0 1px rgba(255,90,60,.5);animation:lowpulse .9s ease-in-out infinite;}
   @keyframes lowpulse{0%,100%{opacity:1}50%{opacity:.4}}
   /* the rest of the bar's furniture sits in its own row below the light strip — it carries
-     its own side padding now, since the strip above it sits much closer to the edge */
+     its own side padding now, since the strip above it sits much closer to the edge.
+     Three direct children now (LVL, the goal pill, the clock) instead of two side
+     button clusters plus a figs group -- back/mute/reset moved out entirely, so
+     space-between spreads the three remaining pieces across the full row on its own,
+     no wrapper needed to hold a button next to the LVL label anymore. */
   .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;}
-  .side{display:flex;align-items:center;gap:10px;flex:none;}
   /* LVL n — the small label and the big numeral, in the world's own ink */
   .lvl{display:flex;align-items:center;gap:5px;flex:none;color:var(--thread-ink,#4a3a1e);
     user-select:none;}
@@ -81,16 +84,19 @@
   .mark{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;font-size:21px;line-height:1;font-variant-numeric:tabular-nums;}
 
-  /* the goal and the clock read as plain figures on the panel now — no chip behind
-     either one, just the numbers and the icon that says what they mean */
-  .figs{display:flex;align-items:center;gap:18px;}
+  /* The clock still reads as a plain figure on the panel -- no chip, just the number.
+     The goal count gets its own warm pill behind it now, matching the reference: it's
+     the thing the panel is most calling out, so it earns a bit of its own furniture
+     the clock doesn't need. */
   .fig{font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-size:15px;font-weight:700;color:var(--thread-ink,#4a3a1e);
     display:flex;align-items:center;justify-content:center;gap:7px;
     font-variant-numeric:tabular-nums;white-space:nowrap;}
-  /* the goal icon mirrors whatever you're actually collecting in that world — a little
-     vane for the garden, a warm ember glow everywhere else — instead of a plain dot.
-     Sized up so it reads as its own little illustration, not a bullet point. */
+  .fig.ember{background:#efe1c4;border-radius:999px;padding:7px 16px 7px 12px;}
+  /* every level now scatters the same thing (see renderGoalIcon) so the icon itself
+     no longer needs a per-world identity -- it just needs to read clearly at this
+     size, which is why it's sized up to its own little illustration rather than a
+     bullet point. */
   .goalIcon{width:24px;height:24px;flex:none;display:inline-flex;transition:filter .25s ease;}
   .goalIcon svg{width:100%;height:100%;display:block;}
   .goalIcon.lit{filter:saturate(1.3) brightness(1.1) drop-shadow(0 0 2px rgba(0,0,0,.2));}
@@ -100,6 +106,23 @@
     width:26px;height:26px;cursor:pointer;display:grid;place-items:center;transition:color .18s;flex:none;}
   .iconbtn:hover{color:#22221c;}
   .iconbtn svg{width:19px;height:19px;stroke-width:2;}
+
+  /* Triple-tap menu: a dimmed backdrop over the board with three pill buttons on it,
+     the same white-panel-on-dark-scrim language the win screen already uses. Sits at
+     z-index 4, one below the topbar's 5, so the opaque topbar (and the light meter
+     inside it) stays visible and undimmed above the scrim instead of getting covered
+     by it -- the dimming only ever reaches the board underneath. */
+  .tapmenu{position:absolute;inset:0;z-index:4;display:none;align-items:center;justify-content:center;
+    background:rgba(40,36,28,.55);}
+  .tapmenu.show{display:flex;animation:fade .2s ease both;}
+  .tapsheet{display:flex;flex-direction:column;gap:14px;width:min(76%,300px);}
+  .tapbtn{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    background:#faf8f3;border:0;border-radius:999px;padding:17px 24px;
+    font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:19px;font-weight:700;color:#3a352c;
+    box-shadow:0 8px 22px -8px rgba(16,12,6,.38), 0 1px 3px rgba(16,12,6,.16);
+    cursor:pointer;}
+  .tapbtn svg{width:22px;height:22px;stroke-width:2.2;flex:none;color:#57534a;}
 
   .stage{position:relative;flex:1;min-height:0;touch-action:none;}
   canvas{display:block;width:100%;height:100%;}
@@ -320,27 +343,30 @@
     </div>
 
     <div class="topbar">
-      <!-- the light sits inset inside the panel, above the row that shows what it buys -->
-      <div class="track"><div class="fill" id="lightFill"></div></div>
       <div class="bar">
-        <div class="side">
-          <button class="iconbtn" id="back" title="Levels" aria-label="Back to levels">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4"/><path d="M10 6l-6 6 6 6"/></svg>
-          </button>
-          <div class="lvl"><span>LVL</span><b class="mark">1</b></div>
-        </div>
-        <div class="figs">
-          <span class="fig ember"><span id="embers">0/0</span><span class="goalIcon" id="goalIcon"></span></span>
-          <span class="fig time"><span id="time">0:00</span></span>
-        </div>
-        <div class="side">
-          <button class="iconbtn" id="mute" title="Sound" aria-label="Sound">
-            <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
-          </button>
-          <button class="iconbtn" id="reset" title="New maze" aria-label="New maze">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-          </button>
-        </div>
+        <div class="lvl"><span>LVL</span><b class="mark">1</b></div>
+        <span class="fig ember"><span class="goalIcon" id="goalIcon"></span><span id="embers">0/0</span></span>
+        <span class="fig time"><span id="time">0:00</span></span>
+      </div>
+      <!-- the light sits inset inside the panel, below the row that shows what it buys -->
+      <div class="track"><div class="fill" id="lightFill"></div></div>
+    </div>
+
+    <!-- Triple-tap anywhere on the board to open this: exit, restart, sound, now that
+         they no longer have their own topbar buttons. A dimmed backdrop below the
+         topbar's own z-index, so the LVL/goal/time row and its progress line stay
+         crisp on top instead of dimming along with the maze underneath. -->
+    <div class="tapmenu" id="tapMenu">
+      <div class="tapsheet">
+        <button class="tapbtn" id="tmExit">Exit
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+        </button>
+        <button class="tapbtn" id="tmRestart">Restart
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        </button>
+        <button class="tapbtn" id="tmSound">Sound
+          <svg id="tmSoundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
+        </button>
       </div>
     </div>
 
@@ -355,6 +381,7 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const stage = document.getElementById('stage');
+  const topbarEl = document.querySelector('.topbar');
   const elTime = document.getElementById('time');
   const elEmbers = document.getElementById('embers');
   const elLightFill = document.getElementById('lightFill');
@@ -596,7 +623,7 @@
     layout();
     tipX = (cx(head)+0.5)*cellSize; tipY = (cy(head)+0.5)*cellSize;
     tCamX = camX = clampCam(cellSize*(cx(head)+0.5) - viewW/2, worldW()-viewW);
-    tCamY = camY = clampCam(cellSize*(cy(head)+0.5) - viewH/2, worldH()-viewH);
+    tCamY = camY = clampCam(cellSize*(cy(head)+0.5) - viewH/2, worldH()-viewH, -topInset);
     updateHud();
     return true;
   }
@@ -617,6 +644,10 @@
   let cols, rows, cells, cellSize;
   let camX = 0, camY = 0, tCamX = 0, tCamY = 0;
   let viewW = 0, viewH = 0, dpr = 1;
+  // How tall the opaque topbar panel is right now -- the camera's vertical clamp keeps this
+  // much room clear above the maze's own top edge, so a start cell (or any row) pinned to
+  // the top of the world doesn't render flush under the HUD and get cut off by it.
+  let topInset = 0;
   let trail = [];              // array of cell indices
   let inTrail = new Set();     // membership for O(1)
   let endCell = 0, startCell = 0;
@@ -751,7 +782,7 @@
     tipX = (cx(startCell)+0.5)*cellSize; tipY = (cy(startCell)+0.5)*cellSize;
     // center camera on start immediately
     tCamX = camX = clampCam(cellSize*(cx(startCell)+0.5) - viewW/2, worldW()-viewW);
-    tCamY = camY = clampCam(cellSize*(cy(startCell)+0.5) - viewH/2, worldH()-viewH);
+    tCamY = camY = clampCam(cellSize*(cy(startCell)+0.5) - viewH/2, worldH()-viewH, -topInset);
     updateHud();
   }
 
@@ -784,25 +815,16 @@
     renderGoalIcon();
   }
 
-  // The bar's goal icon is a tiny portrait of whatever's actually scattered through the
-  // maze: the garden's little pinwheel vane (same alternating petals as the in-world
-  // art), or the warm ember glow everywhere else. Rebuilt per-theme rather than themed
-  // with a filter, since the vane and the ember don't share a silhouette.
+  // What you collect is the same little tomato in every world now, not a per-theme
+  // portrait (the garden's pinwheel vane, the ember glow elsewhere) -- so the icon is
+  // fixed markup rather than something rebuilt from T.skin/T.beacon/T.core each time.
   function renderGoalIcon(){
     if (!elGoalIcon) return;
-    if (T.skin === 'garden'){
-      const A = T.beacon, B = T.core;
-      const pts = [[24,16],[20,22.93],[12,22.93],[8,16],[12,9.07],[20,9.07]];
-      const petals = pts.map((p,i) =>
-        `<circle cx="${p[0]}" cy="${p[1]}" r="6.4" fill="${i%2?B:A}" stroke="#2c2016" stroke-opacity=".75" stroke-width="1.1"/>`
-      ).join('');
-      elGoalIcon.innerHTML = `<svg viewBox="0 0 32 32"><g>${petals}</g>` +
-        `<circle cx="16" cy="16" r="5.2" fill="${A}" stroke="#2c2016" stroke-opacity=".75" stroke-width="1.3"/></svg>`;
-    } else {
-      elGoalIcon.innerHTML = `<svg viewBox="0 0 32 32">` +
-        `<circle cx="16" cy="16" r="14" fill="rgba(${T.ember},.5)"/>` +
-        `<circle cx="16" cy="16" r="7" fill="${T.core}" stroke="rgb(${T.ember})" stroke-width="1.6"/></svg>`;
-    }
+    elGoalIcon.innerHTML = '<svg viewBox="0 0 18 21" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="8" width="2" height="8" rx="1" fill="#595349"/>' +
+      '<circle cx="9" cy="12" r="9" fill="#FF2828"/>' +
+      '<ellipse cx="12.8284" cy="7.82844" rx="1.5" ry="2.5" transform="rotate(-45 12.8284 7.82844)" fill="#FFE8BE"/>' +
+      '</svg>';
   }
 
   function loadLevel(i, fresh=false){
@@ -1801,7 +1823,7 @@
 
   const worldW = () => cols*cellSize;
   const worldH = () => rows*cellSize;
-  const clampCam = (v, max) => max <= 0 ? max/2 : Math.max(0, Math.min(max, v));
+  const clampCam = (v, max, min=0) => max <= min ? (min+max)/2 : Math.max(min, Math.min(max, v));
 
   // ---- layout / sizing ----
   function layout() {
@@ -1811,10 +1833,11 @@
     canvas.height = Math.round(r.height * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
     viewW = r.width; viewH = r.height;
+    topInset = topbarEl ? topbarEl.getBoundingClientRect().height : 0;
     // show ~7 cells across, clamped to a comfortable finger size
     cellSize = Math.max(38, Math.min(66, Math.round(viewW / 7)));
     tCamX = camX = clampCam(camX, worldW()-viewW);
-    tCamY = camY = clampCam(camY, worldH()-viewH);
+    tCamY = camY = clampCam(camY, worldH()-viewH, -topInset);
     seedParticles();
   }
 
@@ -2135,7 +2158,7 @@
       if (hy > tCamY + viewH - dzY) tCamY = hy - viewH + dzY;
     }
     tCamX = clampCam(tCamX, worldW()-viewW);
-    tCamY = clampCam(tCamY, worldH()-viewH);
+    tCamY = clampCam(tCamY, worldH()-viewH, -topInset);
     camX += (tCamX - camX) * 0.16;
     camY += (tCamY - camY) * 0.16;
   }
@@ -2563,7 +2586,9 @@
       const c00 = corner(x0,y0), c10 = corner(x0+1,y0), c01 = corner(x0,y0+1), c11 = corner(x0+1,y0+1);
       return (c00*(1-fx)+c10*fx)*(1-fy) + (c01*(1-fx)+c11*fx)*fy;
     };
-    c.fillStyle = 'rgba(20,36,14,.5)';
+    // Same rgb as the #246534 border/wall colour, just at .5 alpha so it still reads
+    // as texture on the lighter hedge fill rather than solid patches of that colour.
+    c.fillStyle = 'rgba(36,101,52,.5)';
     for (let y=0;y<T;y+=CELL){
       for (let x=0;x<T;x+=CELL){
         if (noiseAt(x+CELL/2, y+CELL/2) > THRESH) c.fillRect(x, y, CELL, CELL);
@@ -4742,21 +4767,52 @@
   }
 
   // ---- controls ----
-  document.getElementById('reset').addEventListener('click', ()=>loadLevel(cur, true));   // fresh maze, same level
+  // Exit/restart/sound live in the triple-tap menu now instead of topbar buttons --
+  // tmSoundIcon has to exist before applyMute's first call below, since applyMute
+  // closes over it.
+  const tapMenu = document.getElementById('tapMenu');
+  const tmSoundIcon = document.getElementById('tmSoundIcon');
+  function openTapMenu(){ tapMenu?.classList.add('show'); }
+  function closeTapMenu(){ tapMenu?.classList.remove('show'); }
+  // tapping the dimmed backdrop itself (not one of the pills) dismisses the menu --
+  // e.target===tapMenu is only true for a tap that lands on the backdrop, since a tap
+  // on a pill button has that button (a descendant) as its target instead.
+  tapMenu?.addEventListener('click', e => { if (e.target === tapMenu) closeTapMenu(); });
+  document.getElementById('tmExit')?.addEventListener('click', ()=>{ closeTapMenu(); openMap(); });
+  document.getElementById('tmRestart')?.addEventListener('click', ()=>{ closeTapMenu(); loadLevel(cur, true); });
+  document.getElementById('tmSound')?.addEventListener('click', ()=>{
+    soundMuted = !soundMuted;
+    try{ localStorage.setItem('thread_mute', soundMuted?'1':'0'); }catch(e){}
+    Snd.resume(); applyMute();
+  });
+  // Three quick taps anywhere on the board opens the menu; a slow fourth tap after the
+  // 500ms window starts a fresh count instead of accidentally completing an old one.
+  // Registered as its own listener on the same canvas/event the drag gesture already
+  // uses -- onDown doesn't stop propagation, so both fire independently off one tap.
+  let tapCount = 0, tapTimer = null;
+  canvas.addEventListener('pointerdown', ()=>{
+    tapCount++;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(()=>{ tapCount = 0; }, 500);
+    if (tapCount >= 3){
+      tapCount = 0; clearTimeout(tapTimer);
+      openTapMenu();
+    }
+  });
   // sound toggle (persisted)
-  const elMute = document.getElementById('mute'), muteIcon = document.getElementById('muteIcon');
   const speakerOn = '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/>';
   const speakerOff = '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/>';
   let soundMuted = false; try{ soundMuted = localStorage.getItem('thread_mute')==='1'; }catch(e){}
-  function applyMute(){ Snd.setMuted(soundMuted); muteIcon.innerHTML = soundMuted ? speakerOff : speakerOn; elMute.style.color = soundMuted ? 'var(--muted)' : ''; }
-  elMute.addEventListener('click', ()=>{ soundMuted=!soundMuted; try{ localStorage.setItem('thread_mute', soundMuted?'1':'0'); }catch(e){} Snd.resume(); applyMute(); });
+  function applyMute(){
+    Snd.setMuted(soundMuted);
+    if (tmSoundIcon) tmSoundIcon.innerHTML = soundMuted ? speakerOff : speakerOn;
+  }
   applyMute();
   // the map opens before anything is touched, so the audio context is built
   // suspended; the very first gesture anywhere wakes it
   window.addEventListener('pointerdown', ()=>Snd.resume(), { once:true, capture:true });
   document.getElementById('next').addEventListener('click', ()=>loadLevel(cur+1 < TOTAL ? cur+1 : cur));
   document.getElementById('tomap').addEventListener('click', openMap);
-  document.getElementById('back').addEventListener('click', openMap);   // the arrow is the way out now
 
   let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(()=>layout(), 120); });
 
