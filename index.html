@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a1114" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>A MAZE THING</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -233,57 +236,15 @@
      (it maxed out around 625px on a 400px-wide phone, well under the old 660px cap), so
      cards never actually reached "80% of the viewport" in practice. Dropping it and
      sizing straight off the viewport height is what actually makes the card taller. */
-  .frame{position:relative;width:300px;height:495px;
+  .frame{position:relative;width:300px;height:540px;
     margin:0 auto;border-radius:22px;overflow:hidden;background:#0f0f0d;
     box-shadow:0 22px 44px -14px rgba(var(--shd),.50),
                0 6px 14px -4px rgba(var(--shd),.30),
                0 1px 2px rgba(var(--shd),.22);}
-  /* The art runs the full card. A world you are not on is only its art — the foot is
-     parked below the bottom edge and the button is faded out, so the deck reads as
-     three places rather than three menus. Both come back as the card lands. */
+  /* The art runs the full card — no Play button floating over it any more; a pin
+     itself is the button now, so tapping the level you want is the whole interaction. */
   .art{position:absolute;inset:0;}
   .scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-x;}
-  /* Fading to opacity:0 hides a card's Play button from view, but the element stays in
-     the tab order — a keyboard user tabbing through the deck would land on an invisible
-     control for a card that isn't showing. visibility:hidden pulls it out of the tab
-     order too; the transition delay lets it stay visible until the fade actually
-     finishes, and come back the instant the fade-in starts. */
-  .cmid{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);z-index:2;
-    display:flex;flex-direction:column;align-items:center;gap:9px;
-    opacity:0;visibility:hidden;pointer-events:none;
-    transition:opacity .26s ease .04s, visibility 0s linear .30s;}
-  .card.active .cmid{opacity:1;visibility:visible;pointer-events:auto;
-    transition:opacity .26s ease .04s, visibility 0s linear;}
-
-  /* The foot: the level rail, laid on top of the art at the bottom edge of the frame
-     rather than added on as extra height below the card — the card stays a fixed
-     300x495 and the foot lives inside that box. Flush to the frame's own sides and
-     bottom (the frame's overflow:hidden rounds those corners for us); only the top
-     corners get their own radius since that edge floats over the art. */
-  .cfoot{position:absolute;left:0;right:0;bottom:0;z-index:2;
-    background:#F8FAF6;padding:14px 16px;border-radius:0;
-    display:flex;flex-direction:column;align-items:stretch;gap:8px;}
-  @media (prefers-reduced-motion: reduce){
-    .cmid{transition:none;}
-  }
-
-  /* ---- one chrome, every world ---------------------------------------------------
-     The furniture used to be cut from each world's own material — pixel, hedge, kraft.
-     Three worlds meant three of everything, and adding a fourth meant designing it all
-     again. It is one system now: the same white pill, the same type, the same spacing,
-     on every card. The art behind it does the work of telling the worlds apart, which
-     is the only thing that actually needs to differ. */
-  .mat{position:relative;font-family:'Space Grotesk',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    background:#f7f5ef;color:#22221c;border-radius:999px;}
-
-  /* PLAY: the one thing on the card you are meant to hit. Kept white on every world so
-     it never has to fight that world's palette — the shadow does the separating. */
-  .play{border:0;cursor:pointer;font-weight:500;font-size:15px;letter-spacing:.13em;
-    text-indent:.13em;padding:14px 40px;line-height:1;
-    box-shadow:0 1px 2px rgba(16,12,6,.20), 0 8px 20px -4px rgba(16,12,6,.42);
-    transition:transform .12s ease, box-shadow .18s ease;}
-  .play:hover{box-shadow:0 1px 2px rgba(16,12,6,.22), 0 12px 26px -4px rgba(16,12,6,.5);}
-  .play:active{transform:translateY(1px) scale(.985);}
   /* where you left off in this world — quiet, under the name, only on the card you are on */
   .cstat{display:flex;align-items:center;justify-content:center;gap:10px;
     font-size:10px;color:#8a8578;font-variant-numeric:tabular-nums;line-height:1;}
@@ -293,26 +254,38 @@
   .cstat svg{width:11px;height:11px;display:block;opacity:.85;}
   .cstat span{display:flex;align-items:center;gap:4px;}
 
-  /* the level rail, now sitting in the foot rather than floating over the art. The row
-     is plain numbers; only the level you are on takes a filled disc. */
-  .lvrail{position:relative;display:flex;align-items:stretch;gap:2px;}
-  .lv{flex:1 1 0;min-width:0;height:30px;border:0;background:none;
-    color:#3a382f;font:inherit;font-size:14px;font-weight:500;cursor:pointer;position:relative;
+  /* The levels used to sit in a bottom bar; now they're pins standing right on the
+     trail the card art already draws (same points scenePts/paintScene place the
+     thread/yarn/lantern along), so the card reads as a little map of the world
+     instead of a maze picture with a separate score row bolted under it. .lvpins is
+     just a click-through-less positioning layer over the art; each .pin carries its
+     own absolute left/top set inline (computed from the same cs/ox/oy paintScene
+     uses) so it lands exactly on the painted curve regardless of which skin. */
+  .lvpins{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .pin{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border:0;
+    border-radius:50%;background:#f7f5ef;color:#3a382f;font:inherit;font-size:13px;
+    font-weight:600;cursor:pointer;pointer-events:auto;
     font-variant-numeric:tabular-nums;
-    display:flex;align-items:center;justify-content:center;
+    display:grid;place-items:center;line-height:1;
+    box-shadow:0 1px 2px rgba(16,12,6,.22), 0 5px 11px -3px rgba(16,12,6,.45);
     transition:transform .12s;}
-  .lv .lvn{display:grid;place-items:center;line-height:1;
-    width:28px;height:28px;border-radius:50%;transition:background .16s;}
-  .lv .lvn svg{width:15px;height:15px;}
-  .lv.done{color:var(--acc);}
-  .lv:hover:not(.locked):not(.cur) .lvn{background:rgba(20,16,8,.07);}
-  .lv:active:not(.locked){transform:scale(.92);}
-  /* the one place a world's colour is allowed into the chrome */
-  .lv.cur .lvn{background:var(--acc);color:var(--onacc);}
+  .pin svg{width:14px;height:14px;}
+  .pin:hover:not(.locked):not(.cur){background:#fff;}
+  .pin:active:not(.locked){transform:scale(.92);}
+  .pin.done{color:var(--acc);}
+  /* the one marker that says "you are here" -- filled, on every world, in the same
+     warm thread colour the game already uses for exactly that meaning, plus a small
+     dropped shadow-dot so it reads as standing on the ground rather than just another
+     disc in the row. */
+  .pin.cur{background:#ffb454;color:#3a2c12;
+    box-shadow:0 2px 3px rgba(16,12,6,.28), 0 6px 14px -3px rgba(120,70,10,.55);}
+  .pin.cur::after{content:'';position:absolute;left:50%;bottom:-9px;
+    width:6px;height:6px;margin-left:-3px;border-radius:99px;
+    background:rgba(20,14,4,.32);}
   /* a run left part-way: a small mark so the deck shows which levels are still warm */
-  .lv.held::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
+  .pin.held::after{content:'';position:absolute;left:50%;bottom:2px;transform:translateX(-50%);
     width:4px;height:4px;border-radius:99px;background:currentColor;opacity:.55;}
-  .lv.locked{opacity:.3;cursor:default;}
+  .pin.locked{opacity:.4;cursor:default;}
 </style>
 </head>
 <body>
@@ -1543,6 +1516,21 @@
     (SCENES[wi] || SCENES[0])(g, r.width, r.height, cs, ox, oy);
   }
 
+  // the five level pins sit at points along the very same SCENE_PATH the card's
+  // decorative trail is drawn through (see scenePts, used by every scene renderer
+  // above) -- picking indices spaced across the path's 17-cell length lands each pin
+  // on a cell centre the trail already visits, so no separate layout or interpolation
+  // is needed and a pin always sits exactly on the painted curve, on every skin.
+  // Path index 0 is the top of the trail, index 17 the bottom; labels run the other
+  // way (1 at the bottom pin, 5 at the top) so the numbers read start-to-finish the
+  // way the trail itself is walked, thread-tip end first.
+  const PIN_PATH_IDX = [17, 13, 9, 4, 0];
+  function scenePinPt(l){
+    const cs = 300/5.2, ox = -cs*0.45, oy = 540/2 - 4.5*cs;
+    const [c, r] = SCENE_PATH[PIN_PATH_IDX[l]];
+    return [ox + (c+0.5)*cs, oy + (r+0.5)*cs];
+  }
+
   // the world's furniture, cut from the world's own material
   const CARD_MAT = [
     { mat:'hedge', edge:'#2c7038', acc:'#eef7e6', onacc:'#2c7038',
@@ -1561,29 +1549,22 @@
     fibreCache[kind] = cv ? `url(${cv.toDataURL()})` : 'none';
     return fibreCache[kind];
   }
-  // which level PLAY drops you into: the one you are on if it is in this world,
-  // otherwise the first you have not finished
-  function playTarget(wi){
-    const a = wi*LEVELS_PER_WORLD;
-    if (worldOf(cur) === wi) return cur;
-    return Math.max(a, Math.min(a + LEVELS_PER_WORLD - 1, beaten));
-  }
-
   function buildMap(){
     const deck = document.getElementById('mapDeck');
     let cards = '';
     WORLDS.forEach((w, wi) => {
       const a = wi*LEVELS_PER_WORLD, seen = PREVIEW_UNLOCK || beaten >= a;
       const M = CARD_MAT[wi] || CARD_MAT[0];
-      let rail = '';
+      let pins = '';
       for (let l=0; l<LEVELS_PER_WORLD; l++){
         const i = a+l, done = i<beaten, locked = !PREVIEW_UNLOCK && i>beaten;
         const st = levelStat(i), held = i!==cur && !done && st && st.started;
-        const cls = 'lv' + (done?' done':'') + (locked?' locked':'')
+        const cls = 'pin' + (done?' done':'') + (locked?' locked':'')
                   + (i===cur?' cur':'') + (held?' held':'');
         const face = done ? CHECK : (locked ? LOCK : (l+1));
-        rail += `<button data-i="${i}" ${locked?'disabled':''} class="${cls}">`
-              + `<span class="lvn">${face}</span></button>`;
+        const [px, py] = scenePinPt(l);
+        pins += `<button data-i="${i}" ${locked?'disabled':''} class="${cls}" `
+              + `style="left:${px.toFixed(1)}px;top:${py.toFixed(1)}px">${face}</button>`;
       }
       // the shadow takes the world's own hue darkened — not black — and keys off the
       // same colour the page tint does, so card and ground agree about the light
@@ -1593,22 +1574,16 @@
         + `--tag:${M.tag};--tagink:${M.tagink};--shd:${shd}">`
         + `<div class="art">`
         +   `<canvas class="scene" data-w="${wi}"></canvas>`
-        +   `<div class="cmid"><button class="play mat" data-w="${wi}">Play</button></div>`
         + `</div>`
-        + `<div class="cfoot">`
-        +   `<div class="lvrail">${rail}</div>`
-        + `</div>`
+        + `<div class="lvpins">${pins}</div>`
         + `</div>`
         + `</div>`;
     });
     deck.innerHTML = cards;
-    deck.querySelectorAll('.lv').forEach(el=>{
+    deck.querySelectorAll('.pin').forEach(el=>{
       const i = +el.dataset.i;
       if (!(!PREVIEW_UNLOCK && i>beaten))
         el.addEventListener('click', ()=>{ Snd.resume(); Snd.ui(); loadLevel(i); });
-    });
-    deck.querySelectorAll('.play').forEach(el=>{
-      el.addEventListener('click', ()=>{ Snd.resume(); Snd.ui(); loadLevel(playTarget(+el.dataset.w)); });
     });
     requestAnimationFrame(()=>{
       deck.querySelectorAll('canvas.scene').forEach(cv => paintScene(cv, +cv.dataset.w));
