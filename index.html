@@ -24,7 +24,16 @@
     --line:#1c2a30;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;}
+  /* overflow:hidden on both html AND body (not just body) matters specifically for
+     iOS "Add to Home Screen" launches: with no browser chrome to hide, iOS has a
+     long-standing habit of quietly scrolling the outer document by a few dozen
+     pixels right after launch, as a vestigial holdover from auto-hiding a Safari
+     address bar that doesn't exist in standalone mode. If html itself can still
+     scroll, that lands the page a bit further down than 0 -- which crops whatever
+     was at the very top (behind the status bar) and opens a blank gap at the
+     bottom. Pinning both eliminates the outer scroll entirely; see the defensive
+     scrollTo(0,0) in the boot script below for the same fix's other half. */
+  html,body{height:100%;margin:0;overflow:hidden;}
   /* one focus ring, everywhere: currentColor picks up whatever ink each button already
      uses, so it reads correctly on the light chrome (cream panels) and the dark win
      screen alike without a per-component override. */
@@ -5076,6 +5085,18 @@
   let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(()=>layout(), 120); });
 
   // go
+  // Defensive fix for an iOS "Add to Home Screen" quirk: with no browser chrome to
+  // hide, standalone launches still sometimes land pre-scrolled by a few dozen
+  // pixels (a holdover from auto-hiding a Safari address bar that isn't there in
+  // standalone mode) -- that crops the top of the screen and opens a blank gap at
+  // the bottom. html/body are already pinned with overflow:hidden above; this
+  // covers the same bug from the other side, in case the scroll gets set before
+  // that layout is fully in effect. Fired now, on load, AND once more shortly after
+  // since the stray scroll can also get applied slightly after the page first paints.
+  window.scrollTo(0, 0);
+  window.addEventListener('load', () => window.scrollTo(0, 0));
+  setTimeout(() => window.scrollTo(0, 0), 300);
+
   loadProgress();
   loadSaves();
   loadLevel(Math.min(beaten, TOTAL-1));   // resume at the next unbeaten level
