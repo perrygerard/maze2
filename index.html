@@ -937,6 +937,143 @@
     g.drawImage(olliImg, -size/2, -size/2, size, size);
     g.restore();
   }
+
+  // The goal item on the board itself: the same little icon renderGoalIcon() already
+  // puts in the topbar counter, drawn here as an actual token in each cell rather than
+  // the plain glow-and-core-dot that used to stand in for it. Loaded once as an Image,
+  // same technique as Olli's own token above, so the ambient radial glow drawEmbers()
+  // already paints for visibility can stay underneath it unchanged -- only the small
+  // core dot is replaced by this image.
+  const GOAL_TOKEN_SRC = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMjEiIHZpZXdCb3g9IjAgMCAxOCAyMSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iOCIgd2lkdGg9IjIiIGhlaWdodD0iOCIgcng9IjEiIGZpbGw9IiM1OTUzNDkiLz4KPGNpcmNsZSBjeD0iOSIgY3k9IjEyIiByPSI5IiBmaWxsPSIjRkYyODI4Ii8+CjxlbGxpcHNlIGN4PSIxMi44Mjg0IiBjeT0iNy44Mjg0NCIgcng9IjEuNSIgcnk9IjIuNSIgdHJhbnNmb3JtPSJyb3RhdGUoLTQ1IDEyLjgyODQgNy44Mjg0NCkiIGZpbGw9IiNGRkU4QkUiLz4KPC9zdmc+Cg==";
+  const goalImg = new Image();
+  let goalReady = false;
+  goalImg.onload = () => { goalReady = true; };
+  goalImg.src = GOAL_TOKEN_SRC;
+  // width:height is 18:21 in the source art; sized off cellSize like the ambient glow
+  // around it, and faded in with the same intensity so it never pops in harder than
+  // the glow that is already cueing the player it is there.
+  function drawGoalToken(g, x, y, cellSize, alpha){
+    if (!goalReady || alpha <= 0) return;
+    const h = cellSize*0.30, w = h*(18/21);
+    g.save();
+    g.globalAlpha = alpha;
+    g.drawImage(goalImg, x-w/2, y-h/2, w, h);
+    g.restore();
+  }
+  // Olli's own body colour (the #5EC548 circle in OLLI_TOKEN_SRC), plus a darker
+  // shade of the same green -- used by the trail's head marker below. Fixed in
+  // every world, the same way the goal token's red no longer shifts with the
+  // level's theme: this is "Olli", not a per-look accent.
+  const OLLI_GREEN = '#5ec548';
+  const OLLI_GREEN_DK = '#3c8a30';
+  // The trail's colour is now fixed too -- the mining world's own thread colour
+  // (the Ember look), shown in every world/level rather than recolouring per look.
+  const TRAIL_THREAD = '#ffc06a';
+  // The wider underlay is a low-opacity black halo rather than a colour-matched
+  // glow -- it's there for contrast against whatever's behind the trail, not to
+  // read as its own light source.
+  const TRAIL_HALO = 'rgba(0,0,0,0.2)';
+  // The exit is now a basket -- Olli's collection basket -- fixed-colour in every
+  // world/level the same way the trail and its head are, rather than the beacon's
+  // old per-look cyan ring.
+  const TOMATO = '#ff2828';
+  const WICKER = '#c98a4b';
+  const WICKER_DK = '#8a5a2c';
+  const WICKER_RIM = '#e8b57c';
+  const SEALED_GREY = '#5a5248';
+  const BASKET_GLOW = '255,196,110';
+  // Side-view basket with a dark outline (same legibility trick as the wind-gust
+  // glyph and the trail head: a near-black stroke under the colour so it reads
+  // against grass, stone, or card backgrounds alike), a subtle hover float, and a
+  // ground shadow that shrinks/fades as it lifts so it reads as floating, not sliding.
+  function drawExitBasket(g, cx, cy, s, open, t){
+    const glowAlpha = open ? (0.34+0.09*Math.sin(t/500)) : 0.20;
+    const grad = g.createRadialGradient(cx,cy,0, cx,cy,s*0.7);
+    grad.addColorStop(0, `rgba(${BASKET_GLOW},${glowAlpha})`); grad.addColorStop(1, `rgba(${BASKET_GLOW},0)`);
+    g.fillStyle = grad; g.beginPath(); g.arc(cx,cy,s*0.7,0,Math.PI*2); g.fill();
+
+    const hover = Math.sin(t/900)*s*0.05;
+    const liftFrac = (hover/(s*0.05) + 1) / 2;
+    g.save();
+    g.fillStyle = 'rgba(0,0,0,.32)'; g.globalAlpha = 1 - 0.35*liftFrac;
+    g.beginPath();
+    g.ellipse(cx, cy + s*0.30, s*0.20*(1-0.16*liftFrac), s*0.06*(1-0.16*liftFrac), 0, 0, Math.PI*2);
+    g.fill();
+    g.restore();
+
+    const w = s*0.56, h = s*0.42;
+    const bodyCol = open ? WICKER : SEALED_GREY;
+    g.save(); g.translate(cx, cy - hover);
+    g.lineCap='round';
+    g.strokeStyle = 'rgba(18,12,7,.55)'; g.lineWidth = s*0.08;
+    g.beginPath(); g.arc(0, -h*0.30, w*0.30, Math.PI*1.12, Math.PI*1.88); g.stroke();
+    g.strokeStyle = open ? WICKER_DK : '#4a443a'; g.lineWidth = s*0.05;
+    g.beginPath(); g.arc(0, -h*0.30, w*0.30, Math.PI*1.12, Math.PI*1.88); g.stroke();
+    g.beginPath();
+    g.moveTo(-w*0.40, -h*0.28);
+    g.lineTo(w*0.40, -h*0.28);
+    g.lineTo(w*0.26, h*0.30);
+    g.quadraticCurveTo(0, h*0.40, -w*0.26, h*0.30);
+    g.closePath();
+    g.fillStyle = bodyCol; g.fill();
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(18,12,7,.6)'; g.lineWidth = s*0.045; g.stroke();
+    g.strokeStyle = open ? WICKER_RIM : '#7a7164'; g.lineWidth = s*0.032;
+    g.beginPath(); g.moveTo(-w*0.40, -h*0.28); g.lineTo(w*0.40, -h*0.28); g.stroke();
+    if (open){
+      const bob = Math.sin(t/500)*s*0.014;
+      g.beginPath(); g.arc(-w*0.08, -h*0.28 - s*0.05 + bob, s*0.08, 0, 7);
+      g.fillStyle = TOMATO; g.fill();
+      g.beginPath(); g.arc(w*0.12, -h*0.28 - s*0.02 + bob*0.7, s*0.065, 0, 7);
+      g.fillStyle = TOMATO; g.fill();
+    }
+    g.restore();
+  }
+  // The garden's light-fuel pickup -- the user's own uploaded sun icon, embedded the
+  // same way the tomato goal token and Olli's own trail-head art are: a data URI,
+  // loaded once, drawn with drawImage rather than assembled from paths. Replaces the
+  // hand-drawn wind-gust glyph below (windGlyph/WIND_LINES/windLinePath are left
+  // defined but unused, same convention as drawVanes/drawWindmill).
+  const SUN_TOKEN_SRC = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDMiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MyA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgZmlsdGVyPSJ1cmwoI2ZpbHRlcjBfaV8yMzVfMTc0KSI+CjxwYXRoIGQ9Ik0xNy4wNzA5IDIuNjE5MTRDMTguODk5NSAtMC44NzMwNDUgMjMuODk5NyAtMC44NzMwNDUgMjUuNzI4MyAyLjYxOTE0VjIuNjE5MTRDMjYuODI3NyA0LjcxODcyIDI5LjI3NjUgNS43MjYyMSAzMS41MzQ5IDUuMDA3NEwzMi4wNDcgNC44NDQ0MUMzNS42NzA5IDMuNjkwOTcgMzkuMDU1NyA3LjE3MDc4IDM3LjgwMjUgMTAuNzYxNFYxMC43NjE0QzM3LjAyNzMgMTIuOTgyNyAzOC4wNDg0IDE1LjQzMiA0MC4xNzE1IDE2LjQ0NThWMTYuNDQ1OEM0My42NzUyIDE4LjExODkgNDMuNjc1MiAyMy4xMDgzIDQwLjE3MTUgMjQuNzgxNFYyNC43ODE0QzM4LjA0ODQgMjUuNzk1MiAzNy4wMjczIDI4LjI0NDUgMzcuODAyNSAzMC40NjU4VjMwLjQ2NThDMzkuMDU1NyAzNC4wNTY0IDM1LjY3MDkgMzcuNTM2MiAzMi4wNDcgMzYuMzgyOEwzMS41MzQ5IDM2LjIxOThDMjkuMjc2NSAzNS41MDEgMjYuODI3NyAzNi41MDg1IDI1LjcyODMgMzguNjA4MVYzOC42MDgxQzIzLjg5OTcgNDIuMTAwMyAxOC44OTk1IDQyLjEwMDMgMTcuMDcwOSAzOC42MDgxVjM4LjYwODFDMTUuOTcxNSAzNi41MDg1IDEzLjUyMjggMzUuNTAxIDExLjI2NDQgMzYuMjE5OEwxMC43NTIzIDM2LjM4MjhDNy4xMjg0IDM3LjUzNjIgMy43NDM1MiAzNC4wNTY0IDQuOTk2NzIgMzAuNDY1OFYzMC40NjU4QzUuNzcyIDI4LjI0NDUgNC43NTA4OCAyNS43OTUyIDIuNjI3OCAyNC43ODE0VjI0Ljc4MTRDLTAuODc1OTM1IDIzLjEwODMgLTAuODc1OTM0IDE4LjExODkgMi42Mjc4IDE2LjQ0NThWMTYuNDQ1OEM0Ljc1MDg4IDE1LjQzMiA1Ljc3MiAxMi45ODI3IDQuOTk2NzIgMTAuNzYxNFYxMC43NjE0QzMuNzQzNTIgNy4xNzA3OCA3LjEyODQgMy42OTA5NyAxMC43NTIzIDQuODQ0NEwxMS4yNjQ0IDUuMDA3NEMxMy41MjI4IDUuNzI2MjEgMTUuOTcxNSA0LjcxODcyIDE3LjA3MDkgMi42MTkxNFYyLjYxOTE0WiIgZmlsbD0iI0ZGREQyQSIvPgo8L2c+CjxwYXRoIGQ9Ik0yMS4zOTkzIDUuNzQ4NzhDMjkuNzQ1NyA1Ljc0ODc4IDM2LjUxMjQgMTIuNTE0OCAzNi41MTI2IDIwLjg2MTFDMzYuNTEyNiAyOS4yMDc1IDI5Ljc0NTggMzUuOTc0NCAyMS4zOTkzIDM1Ljk3NDRDMTMuMDUzIDM1Ljk3NDIgNi4yODY5OSAyOS4yMDc0IDYuMjg2OTkgMjAuODYxMUM2LjI4NzE1IDEyLjUxNDkgMTMuMDUzMSA1Ljc0ODk1IDIxLjM5OTMgNS43NDg3OFoiIGZpbGw9IiNGRkREMkEiLz4KPHBhdGggZD0iTTE0Ljg5MzYgMTYuNTY1MkMxNi42MiAxNS4yMTY2IDE3LjUyMTggMTUuMjI2MyAxOS4wMTYxIDE2LjU2NTJNMjMuNjUzOSAxNi41NjUyQzI1LjM4MDMgMTUuMjE2NiAyNi4yODIxIDE1LjIyNjMgMjcuNzc2NCAxNi41NjUyTTE2Ljk1NDggMjYuMDczN0MyMC4zNzYgMjguNjUwOSAyMi4yOTQxIDI4LjQ4NDYgMjUuNzE1MiAyNi4wNzM3IiBzdHJva2U9IiNGRkE0MTEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxlbGxpcHNlIGN4PSIzMS4wNjE4IiBjeT0iMjEuODUyMyIgcng9IjIuNDc3NDgiIHJ5PSIxLjIzODc0IiBmaWxsPSIjRkZGNEI5Ii8+CjxlbGxpcHNlIGN4PSIxMS43Mzc0IiBjeT0iMjEuODUyMyIgcng9IjIuNDc3NDgiIHJ5PSIxLjIzODc0IiBmaWxsPSIjRkZGNEI5Ii8+CjxkZWZzPgo8ZmlsdGVyIGlkPSJmaWx0ZXIwX2lfMjM1XzE3NCIgeD0iMCIgeT0iMCIgd2lkdGg9IjQyLjc5OTMiIGhlaWdodD0iNDEuMjI3MyIgZmlsdGVyVW5pdHM9InVzZXJTcGFjZU9uVXNlIiBjb2xvci1pbnRlcnBvbGF0aW9uLWZpbHRlcnM9InNSR0IiPgo8ZmVGbG9vZCBmbG9vZC1vcGFjaXR5PSIwIiByZXN1bHQ9IkJhY2tncm91bmRJbWFnZUZpeCIvPgo8ZmVCbGVuZCBtb2RlPSJub3JtYWwiIGluPSJTb3VyY2VHcmFwaGljIiBpbjI9IkJhY2tncm91bmRJbWFnZUZpeCIgcmVzdWx0PSJzaGFwZSIvPgo8ZmVDb2xvck1hdHJpeCBpbj0iU291cmNlQWxwaGEiIHR5cGU9Im1hdHJpeCIgdmFsdWVzPSIwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAxMjcgMCIgcmVzdWx0PSJoYXJkQWxwaGEiLz4KPGZlT2Zmc2V0Lz4KPGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0iNi41Ii8+CjxmZUNvbXBvc2l0ZSBpbjI9ImhhcmRBbHBoYSIgb3BlcmF0b3I9ImFyaXRobWV0aWMiIGsyPSItMSIgazM9IjEiLz4KPGZlQ29sb3JNYXRyaXggdHlwZT0ibWF0cml4IiB2YWx1ZXM9IjAgMCAwIDAgMSAwIDAgMCAwIDAuNjUwOTggMCAwIDAgMCAwLjI5ODAzOSAwIDAgMCAxIDAiLz4KPGZlQmxlbmQgbW9kZT0ibm9ybWFsIiBpbjI9InNoYXBlIiByZXN1bHQ9ImVmZmVjdDFfaW5uZXJTaGFkb3dfMjM1XzE3NCIvPgo8L2ZpbHRlcj4KPC9kZWZzPgo8L3N2Zz4K";
+  const sunImg = new Image();
+  let sunReady = false;
+  sunImg.onload = () => { sunReady = true; };
+  sunImg.src = SUN_TOKEN_SRC;
+  // The eyes are baked into the flat image, so a real blink -- separate eyelids
+  // closing over open eyes -- isn't possible without re-cutting the art. This fakes
+  // it instead: a face-coloured patch briefly covers each eye's curve with a short
+  // flat mark standing in for a closed eye, faded in/out via alpha so it doesn't pop.
+  // EYE_L/EYE_R are the eye centres measured directly off the source SVG's own
+  // coordinates (viewBox 43x42, centred), so the patches track the art at any scale.
+  const SUN_EYE_L = [-4.545, -5.1], SUN_EYE_R = [4.215, -5.1];
+  function drawSunIcon(g, cx, cy, w, alpha, t, seed){
+    if (!sunReady || alpha <= 0) return;
+    seed = seed || 0;
+    const pulse = 1 + 0.05*Math.sin(t/900 + seed);
+    const ww = w*pulse, hh = ww*(42/43);
+    const k = ww/43;
+    g.save();
+    g.globalAlpha = alpha;
+    g.shadowColor = 'rgba(18,12,7,.55)'; g.shadowBlur = w*0.16;
+    g.drawImage(sunImg, cx-ww/2, cy-hh/2, ww, hh);
+    g.restore();
+
+    const blinkPeriod = 3600, blinkDur = 160;
+    const cyc = (t + seed*1000) % blinkPeriod;
+    const blinkAmt = cyc < blinkDur ? Math.sin((cyc/blinkDur)*Math.PI) : 0;
+    if (blinkAmt > 0.04){
+      g.save();
+      g.globalAlpha = alpha*blinkAmt;
+      [SUN_EYE_L, SUN_EYE_R].forEach(([ex,ey]) => {
+        const px = cx+ex*k, py = cy+ey*k;
+        g.fillStyle = '#FFDD2A';
+        g.beginPath(); g.ellipse(px, py, k*3.1, k*2.3, 0, 0, Math.PI*2); g.fill();
+        g.strokeStyle = '#FFA411'; g.lineWidth = Math.max(1, k*1.3); g.lineCap = 'round';
+        g.beginPath(); g.moveTo(px-k*2.0, py); g.lineTo(px+k*2.0, py); g.stroke();
+      });
+      g.restore();
+    }
+  }
   // Which way he's heading, in the same screen space the caller's already working in:
   // the live drag/walk direction while it's actually outrunning the last committed
   // cell, otherwise the direction of the last step taken, otherwise facing up the
@@ -1433,18 +1570,28 @@
 
     const pts = scenePts(cs, ox, oy), head = pts[pts.length-1];
     g.lineJoin = 'round'; g.lineCap = 'round';
+    // same thin + soft glow trail every world uses now, in place of the old
+    // per-look thread/core stroke
+    g.strokeStyle = TRAIL_HALO; g.lineWidth = cs*0.28; sceneStroke(g, pts);
+    g.strokeStyle = TRAIL_THREAD; g.lineWidth = cs*0.09; sceneStroke(g, pts);
+    // the lantern's own ambient glow stays (ember light, still per-look), cast from a
+    // near-invisible point so it halos rather than showing as its own bright disc
     g.save();
-    g.shadowColor = `rgba(${L.threadRGB},.8)`; g.shadowBlur = cs*0.5;
-    g.strokeStyle = L.thread; g.lineWidth = cs*0.20; sceneStroke(g, pts);
+    g.shadowColor = `rgba(${L.coreRGB},.9)`; g.shadowBlur = cs*0.5;
+    g.fillStyle = `rgba(${L.coreRGB},.01)`;
+    g.beginPath(); g.arc(head[0], head[1], cs*0.04, 0, 7); g.fill();
     g.restore();
-    g.strokeStyle = L.core; g.lineWidth = cs*0.075; sceneStroke(g, pts);
-    // the start, and the light you are carrying
-    g.strokeStyle = L.start; g.lineWidth = Math.max(1.4, cs*0.06);
-    g.beginPath(); g.arc(pts[0][0], pts[0][1], cs*0.26, 0, 7); g.stroke();
+    // Olli's own two-tone head bead, same fixed colour in every world now (the old
+    // start-of-trail ring at pts[0] is gone too, matching the live board)
     g.save();
-    g.shadowColor = `rgba(${L.coreRGB},.9)`; g.shadowBlur = cs*0.7;
-    g.fillStyle = L.core; g.beginPath(); g.arc(head[0], head[1], cs*0.17, 0, 7); g.fill();
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = cs*0.08; g.shadowOffsetY = cs*0.03;
+    g.fillStyle = OLLI_GREEN_DK;
+    g.beginPath(); g.arc(head[0], head[1], cs*0.16, 0, 7); g.fill();
     g.restore();
+    g.fillStyle = OLLI_GREEN;
+    g.beginPath(); g.arc(head[0], head[1]-cs*0.015, cs*0.13, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)';
+    g.beginPath(); g.ellipse(head[0]-cs*0.045, head[1]-cs*0.06, cs*0.05, cs*0.03, -0.5, 0, 7); g.fill();
     // a flame waiting off to the side, the way one sits in a level
     const fx = ox + 5.4*cs, fy = oy + 6.4*cs;
     const fg = g.createRadialGradient(fx, fy, 0, fx, fy, cs*0.95);
@@ -1469,8 +1616,8 @@
   // runs on and gets swallowed by the cloud instead of stopping cleanly: the stroke
   // is genuinely there, the fog just still covers it, in the same order it always
   // draws in. pts itself (and everything anchored to it -- the walls, the fog shape,
-  // the start ring, the lamp) is untouched, so this is a no-op for every existing
-  // caller that doesn't pass anything.
+  // the head bead) is untouched, so this is a no-op for every existing caller that
+  // doesn't pass anything.
   function sceneGarden(g, w, h, cs, ox, oy, extraPts){
     // shadows the module-level GARDEN on purpose: the world-select card always shows
     // the same Bloom art regardless of which season the player last loaded in-level
@@ -1492,11 +1639,10 @@
       g.lineTo(strokePts[strokePts.length-1][0], strokePts[strokePts.length-1][1]);
     };
     g.lineCap='round'; g.lineJoin='round';
-    g.save();
-    g.shadowColor = GARDEN.cast; g.shadowBlur = cs*0.10; g.shadowOffsetY = cs*0.055;
-    lay(); g.strokeStyle = GARDEN.pathLo; g.lineWidth = cs*0.30; g.stroke();
-    g.restore();
-    lay(); g.strokeStyle = GARDEN.path; g.lineWidth = cs*0.22; g.stroke();
+    // same thin + soft glow trail every world uses now, in place of the old
+    // two-tone GARDEN.pathLo/path stroke
+    lay(); g.strokeStyle = TRAIL_HALO; g.lineWidth = cs*0.28; g.stroke();
+    lay(); g.strokeStyle = TRAIL_THREAD; g.lineWidth = cs*0.09; g.stroke();
 
     for (let r=0; r<SCENE_H; r++) for (let c=0; c<SCENE_W; c++){
       if (sceneLit(c,r) <= 0) continue;
@@ -1545,7 +1691,14 @@
       }
       const segs = [];
       segMap.forEach(sv => segs.push(sv[0],sv[1],sv[2],sv[3]));
-      const HEDGE_WALL_PAL = { shadow:'rgba(36,101,52,', wallBase:'#246534', wallLiner:GARDEN.hedgeMid };
+      // This card always renders Bloom (see the shadowed GARDEN above), so the same
+      // reversed fill/speckle treatment bakeGarden applies for LOOK.BLOOM applies here
+      // unconditionally -- #163d1f/rgba(22,61,31, is the precomputed dark shade of the
+      // #246534 border, same values bakeGarden uses.
+      const HEDGE_WALL_PAL = {
+        shadow: 'rgba(22,61,31,', wallBase: '#163d1f', wallLiner: '#246534',
+        speckle: 'rgba('+toRGB(GARDEN.hedgeMid).join(',')+',.5)',
+      };
       drawHedgeWalls(g, segs, cs, k, 0, 0, HEDGE_WALL_PAL, w, h);
     }
 
@@ -1581,15 +1734,24 @@
     fog(cs*0.46, 5*k); g.fillStyle = GARDEN.cloudHi; g.fill();
     g.restore();
     const [hx, hy] = pts[pts.length-1];
+    // Olli, carrying the light -- the warm glow stays, cast from a near-invisible
+    // point so it halos around him instead of showing as its own bright disc
     g.save();
     g.shadowColor = 'rgba(255,206,110,.95)'; g.shadowBlur = cs*0.55;
-    g.fillStyle = GARDEN.lamp;
-    g.beginPath(); g.arc(hx, hy, cs*0.13, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,206,110,.01)';
+    g.beginPath(); g.arc(hx, hy, cs*0.04, 0, 7); g.fill();
     g.restore();
-    g.fillStyle = GARDEN.lampCore;
-    g.beginPath(); g.arc(hx, hy, cs*0.085, 0, 7); g.fill();
-    g.strokeStyle = '#f4ecd8'; g.lineWidth = Math.max(1.4, cs*0.055);
-    g.beginPath(); g.arc(pts[0][0], pts[0][1], cs*0.24, 0, 7); g.stroke();
+    // the two-tone bead -- same fixed-green head marker as every other world (the
+    // old start-of-trail ring at pts[0] is gone too, matching the live board)
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = cs*0.08; g.shadowOffsetY = cs*0.03;
+    g.fillStyle = OLLI_GREEN_DK;
+    g.beginPath(); g.arc(hx, hy, cs*0.16, 0, 7); g.fill();
+    g.restore();
+    g.fillStyle = OLLI_GREEN;
+    g.beginPath(); g.arc(hx, hy-cs*0.015, cs*0.13, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)';
+    g.beginPath(); g.ellipse(hx-cs*0.045, hy-cs*0.06, cs*0.05, cs*0.03, -0.5, 0, 7); g.fill();
   }
 
   // Paper: the board, still shut over most of it, and the yarn on what is open
@@ -1623,21 +1785,22 @@
 
     const pts = scenePts(cs, ox, oy), head = pts[pts.length-1];
     g.lineJoin = 'round'; g.lineCap = 'round';
+    // same thin + soft glow trail every world uses now, in place of the old
+    // yarn-and-twist rendering (yarnBodyAndTwist is left defined but unused)
+    g.strokeStyle = TRAIL_HALO; g.lineWidth = cs*0.28; sceneStroke(g, pts);
+    g.strokeStyle = TRAIL_THREAD; g.lineWidth = cs*0.09; sceneStroke(g, pts);
+    // the two-tone bead -- same fixed-green head marker as every other world (the
+    // old start-of-trail ring at pts[0] and the yarn-ball head are both gone,
+    // matching the live board)
     g.save();
-    g.shadowColor = CARD.shadow + '.45)'; g.shadowBlur = cs*0.10; g.shadowOffsetY = cs*0.05;
-    g.strokeStyle = CARD.yarnDark; g.lineWidth = cs*0.20; sceneStroke(g, pts);
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = cs*0.08; g.shadowOffsetY = cs*0.03;
+    g.fillStyle = OLLI_GREEN_DK;
+    g.beginPath(); g.arc(head[0], head[1], cs*0.16, 0, 7); g.fill();
     g.restore();
-    // core + twist together, same containment the live board uses
-    yarnBodyAndTwist(g, pts.map(p => ({x:p[0], y:p[1]})), cs, w, h,
-                     Math.min(window.devicePixelRatio || 1, 2),
-                     (c) => sceneStroke(c, pts));
-    g.strokeStyle = '#f4ecd8'; g.lineWidth = Math.max(1.4, cs*0.06);
-    g.beginPath(); g.arc(pts[0][0], pts[0][1], cs*0.24, 0, 7); g.stroke();
-    g.save();
-    g.shadowColor = CARD.shadow + '.45)'; g.shadowBlur = cs*0.12; g.shadowOffsetY = cs*0.055;
-    g.fillStyle = CARD.yarnDark; g.beginPath(); g.arc(head[0], head[1], cs*0.19, 0, 7); g.fill();
-    g.restore();
-    g.fillStyle = CARD.yarn; g.beginPath(); g.arc(head[0], head[1], cs*0.147, 0, 7); g.fill();
+    g.fillStyle = OLLI_GREEN;
+    g.beginPath(); g.arc(head[0], head[1]-cs*0.015, cs*0.13, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)';
+    g.beginPath(); g.ellipse(head[0]-cs*0.045, head[1]-cs*0.06, cs*0.05, cs*0.03, -0.5, 0, 7); g.fill();
 
     // every flap still shut, plus one caught mid-turn so the card shows what it does
     const shut = [];
@@ -2687,27 +2850,24 @@
     vg.addColorStop(1, `rgba(5,9,11,${Math.min(0.97,darkA)})`);
     ctx.fillStyle = vg; ctx.fillRect(0,0,viewW,viewH);
 
-    if (explored.has(startCell)) drawMarker(startCell, T.start, false, t);
     drawBeacon(t);
     drawEmbers(t);
     drawFlames(t);
     drawBlooms();
 
-    // the thread — dims behind you as the lantern fades
+    // the trail — same thin + soft glow technique in every world now, dims behind
+    // you as the lantern fades. Colour comes from the current look's own thread pair.
     const tipOut = Math.hypot(tipX-(cx(trail[trail.length-1])+0.5)*cellSize, tipY-(cy(trail[trail.length-1])+0.5)*cellSize) > cellSize*0.04;
     if (trail.length > 1 || tipOut){
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.globalAlpha = 0.45 + 0.55*light;
-      // glow underlay
-      ctx.strokeStyle = `rgba(${T.threadRGB},0.22)`;
-      ctx.lineWidth = cellSize*0.5;
+      // wide dark halo, for contrast against whatever's underneath
+      ctx.strokeStyle = TRAIL_HALO;
+      ctx.lineWidth = cellSize*0.28;
       strokeTrail();
       // core
-      const grad = ctx.createLinearGradient(0,0,viewW,viewH);
-      grad.addColorStop(0, getVar('--thread'));
-      grad.addColorStop(1, T.core);
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = cellSize*0.2;
+      ctx.strokeStyle = TRAIL_THREAD;
+      ctx.lineWidth = cellSize*0.09;
       strokeTrail();
       ctx.globalAlpha = 1;
     }
@@ -2720,9 +2880,18 @@
     ctx.fillStyle = 'rgba(0,0,0,.01)';
     ctx.beginPath(); ctx.arc(bx, by, cellSize*0.04, 0, 7); ctx.fill();
     ctx.restore();
-    const isoHead = trail[trail.length-1];
-    const ihx = (cx(isoHead)+0.5)*cellSize - camX, ihy = (cy(isoHead)+0.5)*cellSize - camY;
-    drawOlliToken(ctx, bx, by, cellSize*0.4, travelAngle(ihx, ihy, bx, by));
+    // The two-tone bead: a fixed green (Olli's own colour, not a per-look accent),
+    // darker base + lighter top bevel + a small highlight -- same shape/colour in
+    // every world, marking the trail's head in place of his sprite.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = cellSize*0.08; ctx.shadowOffsetY = cellSize*0.03;
+    ctx.fillStyle = OLLI_GREEN_DK;
+    ctx.beginPath(); ctx.arc(bx, by, cellSize*0.16, 0, 7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = OLLI_GREEN;
+    ctx.beginPath(); ctx.arc(bx, by-cellSize*0.015, cellSize*0.13, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(bx-cellSize*0.045, by-cellSize*0.06, cellSize*0.05, cellSize*0.03, -0.5, 0, 7); ctx.fill();
   }
 
   // The ground, the hedges and the cloud are static between steps: they only move
@@ -2773,14 +2942,21 @@
       petal:'#fffdf9', petalPink:'#ff9ec4', pollen:'#f7c8db', stem:'#2e5f28',
       spark:'#ffe2ef',
     },
+    // Fall's approved v2 colorway: the hedge stays a natural evergreen (hedgeLo/
+    // hedgeMid) rather than turning orange -- it's the duo-tone `speckle` (rust +
+    // gold) that carries the autumn read, plus small leaf piles tucked into the
+    // hedge's inside corners (see drawHedgeBlooms's sibling, drawGardenLeafPiles,
+    // wired into bakeGarden below). Ambient fields (clouds/path/lamp/petal/spark/
+    // cast) are the "Golden Harvest" warm-gold atmosphere explored alongside it.
     [LOOK.FALL]: {
-      grass:'#c99a45',
-      hedgeLo:'#4a2410', hedgeMid:'#b5551f', hedgeHi:'#e8a33d',
-      cloudLo:'#dcc39a', cloudMid:'#f0dcc0', cloudHi:'#fff6e6',
-      cast:'rgba(58,32,14,.45)',
-      pathLo:'#b3813f', path:'#e8c98a', lamp:'#ffb45a', lampCore:'#fff3df',
-      petal:'#fdeccb', petalPink:'#e8934a', pollen:'#d9782a', stem:'#4a2410',
-      spark:'#ffcf7a',
+      grass:'#849829',
+      hedgeLo:'#3E4200', hedgeMid:'#5D6F0C', hedgeHi:'#f7c452',
+      speckle:['#AC5408', '#C69307'],
+      cloudLo:'#e6cd9e', cloudMid:'#f7e6c0', cloudHi:'#fffaea',
+      cast:'rgba(74,44,14,.40)',
+      pathLo:'#c99a56', path:'#f2d99c', lamp:'#ffc766', lampCore:'#fff6df',
+      petal:'#ffedc4', petalPink:'#f0ac3d', pollen:'#e0921f', stem:'#3E4200',
+      spark:'#ffe28a',
     },
     [LOOK.WINTER]: {
       grass:'#eef4f2',
@@ -2825,9 +3001,21 @@
   // standard value noise), sampled on a 2px grid and thresholded, so a patch's edges
   // fall on that grid instead of tracing a smooth curve. The corner lattice wraps mod G,
   // so the field is exactly periodic across the tile and the pattern repeats with no seam.
-  let hedgeSpecklePat = null;
-  function hedgeSpeckle(){
-    if (hedgeSpecklePat) return hedgeSpecklePat;
+  // Keyed per colour (not one shared pattern) -- Bloom's reversed treatment and
+  // Fall's duo-tone need their own speckle tints alongside the default, so all three
+  // coexist rather than one overwriting the others' cache.
+  const hedgeSpecklePats = {};
+  // colors: a single string (the original one-tone speckle) or an array of strings
+  // for a duo/multi-tone speckle (Fall) -- each colour gets its own independently
+  // seeded noise lattice (offset by its index) so patches don't land in lockstep.
+  // thresh: how much of the noise field counts as "on" -- lower is denser. Defaults
+  // to the original 0.70; Fall's leafier scatter uses a lower value (see bakeGarden).
+  function hedgeSpeckle(colors, thresh){
+    colors = colors || 'rgba(36,101,52,.5)';
+    if (typeof colors === 'string') colors = [colors];
+    thresh = thresh === undefined ? 0.70 : thresh;
+    const key = colors.join('|') + '@' + thresh;
+    if (hedgeSpecklePats[key]) return hedgeSpecklePats[key];
     // CELL has to stay a whole number of pixels -- the previous pass at "3x smaller"
     // scaled it down to a fraction (2/3) right along with G, which kept the same
     // proportions on paper but meant almost every block landed on a non-integer
@@ -2838,28 +3026,30 @@
     // original pass at this (18) for the smaller patches; CELL stays a flat 1px
     // (rounded down from 2/3) so every block is hard-edged, and THRESH is nudged up
     // to keep the coverage from reading as denser now that patches are finer-grained.
-    const T = 96, G = 54, CELL = 1, THRESH = 0.70;
+    const T = 96, G = 54, CELL = 1;
     const t = document.createElement('canvas'); t.width = t.height = T;
     const c = t.getContext('2d');
-    const corner = (gx,gy) => hash(((gx%G)+G)%G + 71.3*(((gy%G)+G)%G), 61);
     const smooth = v => v*v*(3-2*v);
-    const noiseAt = (x,y) => {
-      const gx = x/T*G, gy = y/T*G;
-      const x0 = Math.floor(gx), y0 = Math.floor(gy);
-      const fx = smooth(gx-x0), fy = smooth(gy-y0);
-      const c00 = corner(x0,y0), c10 = corner(x0+1,y0), c01 = corner(x0,y0+1), c11 = corner(x0+1,y0+1);
-      return (c00*(1-fx)+c10*fx)*(1-fy) + (c01*(1-fx)+c11*fx)*fy;
-    };
-    // Same rgb as the #246534 border/wall colour, just at .5 alpha so it still reads
-    // as texture on the lighter hedge fill rather than solid patches of that colour.
-    c.fillStyle = 'rgba(36,101,52,.5)';
-    for (let y=0;y<T;y+=CELL){
-      for (let x=0;x<T;x+=CELL){
-        if (noiseAt(x+CELL/2, y+CELL/2) > THRESH) c.fillRect(x, y, CELL, CELL);
+    colors.forEach((color, ci) => {
+      const seedOff = ci * 137.9;
+      const corner = (gx,gy) => hash(((gx%G)+G)%G + 71.3*(((gy%G)+G)%G) + seedOff, 61);
+      const noiseAt = (x,y) => {
+        const gx = x/T*G, gy = y/T*G;
+        const x0 = Math.floor(gx), y0 = Math.floor(gy);
+        const fx = smooth(gx-x0), fy = smooth(gy-y0);
+        const c00 = corner(x0,y0), c10 = corner(x0+1,y0), c01 = corner(x0,y0+1), c11 = corner(x0+1,y0+1);
+        return (c00*(1-fx)+c10*fx)*(1-fy) + (c01*(1-fx)+c11*fx)*fy;
+      };
+      c.fillStyle = color;
+      for (let y=0;y<T;y+=CELL){
+        for (let x=0;x<T;x+=CELL){
+          if (noiseAt(x+CELL/2, y+CELL/2) > thresh) c.fillRect(x, y, CELL, CELL);
+        }
       }
-    }
-    hedgeSpecklePat = ctx.createPattern(t, 'repeat');
-    return hedgeSpecklePat;
+    });
+    const pat = ctx.createPattern(t, 'repeat');
+    hedgeSpecklePats[key] = pat;
+    return pat;
   }
 
   const gSeen = i => brightnessOf(i) > 0;
@@ -3548,7 +3738,7 @@
       if (HEDGE_WALL_BUMPS) bumps(tg, th0, 0, pal.wallLiner);
       tg.save();
       tg.globalCompositeOperation = 'source-atop';
-      tg.fillStyle = cardAnchor(hedgeSpeckle(), wox, woy);
+      tg.fillStyle = cardAnchor(hedgeSpeckle(pal.speckle, pal.speckleThresh), wox, woy);
       tg.fillRect(0, 0, w, h);
       tg.restore();
       g.drawImage(tmp, 0, 0);
@@ -3721,6 +3911,110 @@
     gardenActors(t);
   }
 
+  // Spring only: small hedge-top blossoms built from petal/petalPink/pollen, colours
+  // GARDEN_PALETTES already carried for every look but nothing drew with until now.
+  // A single small blossom -- a ring of petals (alternating the palette's two petal
+  // tones for a little variety) around a pollen-coloured centre, rotated per-instance
+  // so a cluster doesn't read as identical stamped copies.
+  function drawFlower(g, cx, cy, r, pal, seed){
+    const rot = hash(seed, 51)*Math.PI*2;
+    const petals = 5;
+    g.save(); g.translate(cx, cy); g.rotate(rot);
+    for (let i=0;i<petals;i++){
+      g.save(); g.rotate((i/petals)*Math.PI*2);
+      g.beginPath();
+      g.ellipse(0, -r*0.62, r*0.42, r*0.62, 0, 0, Math.PI*2);
+      g.fillStyle = (i%2===0) ? pal.petal : pal.petalPink;
+      g.fill();
+      g.restore();
+    }
+    g.beginPath(); g.arc(0, 0, r*0.36, 0, Math.PI*2);
+    g.fillStyle = pal.pollen; g.fill();
+    g.restore();
+  }
+  // Scatters blossoms along the hedge's own wall segments -- sparse and seeded off
+  // each segment's own coordinates (same technique the wall's leaf-bump texture
+  // already uses), so it's stable frame to frame rather than reshuffling.
+  function drawHedgeBlooms(g, segs, cs, pal){
+    const th0 = Math.max(5, cs*0.357);
+    const step = Math.max(cs*0.55, 16);
+    for (let n=0; n<segs.length; n+=4){
+      const x1=segs[n], y1=segs[n+1], x2=segs[n+2], y2=segs[n+3];
+      const len = Math.hypot(x2-x1, y2-y1) || 1;
+      const ux = (x2-x1)/len, uy = (y2-y1)/len;
+      const nx = -uy, ny = ux;
+      const seed = x1*131.7 + y1*57.3 + x2*7.1 + y2*3.3;
+      for (let m=0; step*(m+0.5) < len; m++){
+        if (hash(seed + m*9.1, 41) > 0.3) continue;
+        const d = step*(m+0.5) + (hash(seed+m*3.3, 42)-0.5)*step*0.5;
+        const across = (hash(seed+m*5.7, 43)-0.5)*th0*0.55;
+        const px = x1 + ux*d + nx*across, py = y1 + uy*d + ny*across;
+        const r = cs*(0.045 + hash(seed+m, 44)*0.025);
+        drawFlower(g, px, py, r, pal, seed + m*1.7);
+      }
+    }
+  }
+
+  // Fall only: small piles of leaves (built from the same rust/gold speckle colours)
+  // tucked into every inside corner of the hedge. A soft ground shadow first so a
+  // pile reads as sitting on the grass, then several flattened, randomly rotated
+  // ellipses standing in for leaves, scattered within a small radius.
+  function drawLeafPile(g, cx, cy, r, colors, seed){
+    g.save();
+    g.fillStyle = 'rgba(20,14,4,.28)';
+    g.beginPath(); g.ellipse(cx, cy + r*0.16, r*0.95, r*0.55, 0, 0, Math.PI*2); g.fill();
+    g.restore();
+
+    const count = 8;
+    for (let i=0;i<count;i++){
+      const a = hash(seed + i*3.1, 81) * Math.PI*2;
+      const d = hash(seed + i*5.7, 82) * r*0.4;
+      const lx = cx + Math.cos(a)*d, ly = cy + Math.sin(a)*d*0.55;
+      const rot = hash(seed + i*7.3, 83) * Math.PI*2;
+      const lr = r * (0.34 + hash(seed + i*2.1, 84)*0.21);
+      g.save();
+      g.translate(lx, ly);
+      g.rotate(rot);
+      g.beginPath();
+      g.ellipse(0, 0, lr, lr*0.5, 0, 0, Math.PI*2);
+      g.fillStyle = colors[i % colors.length];
+      g.fill();
+      g.restore();
+    }
+  }
+  // Walks every seen cell and checks its four corners for a wall on both adjacent
+  // sides (e.g. a wall to the north AND to the west means that corner is a genuine
+  // inside corner of the hedge, not just an open edge) -- that's the pocket wind
+  // would actually pile leaves into. Sparse: not every qualifying corner gets a
+  // pile, seeded off the cell/corner so it's stable frame to frame. The inset (0.62
+  // cell widths along the diagonal) clears the wall's own half-thickness plus the
+  // pile's own leaf spread, so piles land on the grass rather than on the wall.
+  function drawGardenLeafPiles(g, ox, oy, w, h, colors){
+    const s = cellSize;
+    const c0 = Math.max(0, Math.floor(ox/s)), r0 = Math.max(0, Math.floor(oy/s));
+    const c1 = Math.min(cols-1, Math.ceil((ox+w)/s)), r1 = Math.min(rows-1, Math.ceil((oy+h)/s));
+    for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
+      const i = idx(c,r);
+      if (!gSeen(i)) continue;
+      const wl = cells[i].walls;
+      const n = wl[0], e = wl[1], s2 = wl[2], w2 = wl[3];
+      const x = c*s - ox, y = r*s - oy;
+      const corners = [];
+      if (n && w2) corners.push([x, y, 1, 1]);
+      if (n && e) corners.push([x+s, y, -1, 1]);
+      if (s2 && w2) corners.push([x, y+s, 1, -1]);
+      if (s2 && e) corners.push([x+s, y+s, -1, -1]);
+      corners.forEach(([cx, cy, dirx, diry], ci) => {
+        const seed = c*17.3 + r*9.1 + ci*3.7;
+        if (hash(seed, 71) > 0.55) return;
+        const inset = s*0.62;
+        const norm = Math.SQRT1_2;
+        const px = cx + dirx*norm*inset, py = cy + diry*norm*inset;
+        drawLeafPile(g, px, py, s*0.17, colors, seed + 11);
+      });
+    }
+  }
+
   function bakeGarden(g, ox, oy, w, h){
     const s = cellSize, k = s/42;
     const c0 = Math.max(0, Math.floor(ox/s)), r0 = Math.max(0, Math.floor(oy/s));
@@ -3739,15 +4033,14 @@
     // after the path -- it draws its own offset shadow, so no separate extrusion
     // pass is needed here the way gardenHedge's capsule fill required.
 
-    // the path you have laid, under everything else on the ground
+    // the trail you have laid, under everything else on the ground -- same thin +
+    // soft glow technique every world uses now, coloured from the current look's
+    // own thread pair instead of the old garden-only two-tone path strip.
     g.lineCap = 'round'; g.lineJoin = 'round';
     if (gardenPathAt(g, ox, oy)){
-      g.save();
-      g.shadowColor = GARDEN.cast; g.shadowBlur = s*0.10; g.shadowOffsetY = s*0.055;
-      g.strokeStyle = GARDEN.pathLo; g.lineWidth = s*0.30; g.stroke();
-      g.restore();
+      g.strokeStyle = TRAIL_HALO; g.lineWidth = s*0.28; g.stroke();
       gardenPathAt(g, ox, oy);
-      g.strokeStyle = GARDEN.path; g.lineWidth = s*0.22; g.stroke();
+      g.strokeStyle = TRAIL_THREAD; g.lineWidth = s*0.09; g.stroke();
     }
 
     // what grows in the corridor, off the path you wore walking it
@@ -3790,7 +4083,28 @@
     // colour for both instead of GARDEN.hedgeLo for the border and a separate rgba for
     // the shadow, so the solid wall face and the border it grows out of read as the
     // same material rather than two shades that happen to be close.
-    const HEDGE_WALL_PAL = { shadow:'rgba(36,101,52,', wallBase:'#246534', wallLiner:GARDEN.hedgeMid };
+    // Bloom (peak-summer growth) and Fall (see GARDEN_PALETTES[LOOK.FALL] above) both
+    // depart from the plain "fixed dark rim + GARDEN.hedgeMid fill" treatment every
+    // other look still uses -- Bloom reverses which colour is the flat fill and which
+    // is the speckle (the fill becomes the fixed dark green, so the hedge reads as
+    // dense, shaded growth, and the old fill colour becomes a lighter speckle instead);
+    // Fall pulls its rim from hedgeLo and its speckle from the palette's own explicit
+    // duo-tone `speckle` field, at a lower (denser) threshold. #163d1f/rgba(22,61,31,
+    // is the precomputed dark shade of the #246534 border used for Bloom's rim.
+    let HEDGE_WALL_PAL;
+    if (curLook === LOOK.BLOOM){
+      HEDGE_WALL_PAL = {
+        shadow: 'rgba(22,61,31,', wallBase: '#163d1f', wallLiner: '#246534',
+        speckle: 'rgba('+toRGB(GARDEN.hedgeMid).join(',')+',.5)',
+      };
+    } else if (curLook === LOOK.FALL){
+      HEDGE_WALL_PAL = {
+        shadow: 'rgba('+toRGB(GARDEN.hedgeLo).join(',')+',', wallBase: GARDEN.hedgeLo,
+        wallLiner: GARDEN.hedgeMid, speckle: GARDEN.speckle, speckleThresh: 0.65,
+      };
+    } else {
+      HEDGE_WALL_PAL = { shadow:'rgba(36,101,52,', wallBase:'#246534', wallLiner:GARDEN.hedgeMid };
+    }
     {
       const rawSegs = [];
       for (let r=r0; r<=r1; r++) for (let c=c0; c<=c1; c++){
@@ -3816,6 +4130,8 @@
       const segs2 = [];
       segMap.forEach(sv => segs2.push(sv[0],sv[1],sv[2],sv[3]));
       drawHedgeWalls(g, segs2, s, k, ox, oy, HEDGE_WALL_PAL, w, h);
+      if (curLook === LOOK.SPRING) drawHedgeBlooms(g, segs2, s, GARDEN);
+      if (curLook === LOOK.FALL) drawGardenLeafPiles(g, ox, oy, w, h, GARDEN.speckle);
     }
 
     // the cloud: three sheets, each clipped to the exact set of still-foggy cells
@@ -3870,27 +4186,20 @@
   }
 
   // only the things that move between steps
-  // Gusts: the garden's light fuel. Same data as flames (the `flames` set, the same
-  // low-light boost) but drawn as three wind lines instead of fire, each ending in a small
-  // curl. Nothing is drawn outside the current reveal window — no faint always-on ghost —
-  // so each line is a true draw-on: a hard-edged mask window slides in from the left to
-  // reveal it, holds, then slides again to erase it from the left outward (last thing
-  // visible is the curled tip), rests briefly, and repeats. The three lines are staggered
-  // so they draw on one after another, top to bottom, rather than all at once.
+  // windGlyph/WIND_LINES/windLinePath: the garden's original wind-fuel pickup art --
+  // three curled, travelling-highlight lines. Superseded by the uploaded sun icon
+  // (drawSunIcon, defined up near drawGoalToken/drawExitBasket) and left defined but
+  // unused, same convention as drawVanes/drawWindmill/drawOlliToken.
   const WIND_LINES = [
-    { y:-0.30, len:0.42, curl:0.15, curlDir: 1  },   // top — curls up
-    { y: 0,    len:0.62, curl:0.19, curlDir: 1  },   // middle — curls up
-    { y: 0.30, len:0.46, curl:0.15, curlDir: -1 },   // bottom — curls down
+    { y:-0.30, len:0.42, curl:0.15, curlDir: 1, dx:0.29 },  // top -- nudged left off its mirrored spot, clear of the middle line's own curl
+    { y: 0,    len:0.62, curl:0.19, curlDir: 1  },          // middle
+    { y: 0.16, len:0.46, curl:0.15, curlDir: -1 },          // bottom -- pulled up toward the middle line
   ];
-  // bounding box helpers: the loop now sits at the START of the line (like the classic
-  // wind glyph — curl first, then the line trails out to the right of it), so it bulges
-  // slightly left of the line's nominal start point
-  function windLineLeftPad(ln){ return ln.curl ? ln.curl*1.15 : 0; }
   function windLinePath(scale, ln){
     const x0 = -scale*0.55, x1 = x0 + scale*ln.len;
     if (ln.curl){
       // the loop leads the line: a small hook the line unwinds out of, curling up or
-      // down depending on the line, then continuing straight out to the right
+      // down depending on the line, then continuing straight out
       const r = scale*ln.curl;
       if (ln.curlDir < 0){
         ctx.arc(x0, scale*ln.y + r, r, -Math.PI/2 - Math.PI*1.5, -Math.PI/2, false);
@@ -3903,44 +4212,40 @@
       ctx.lineTo(x1, scale*ln.y);
     }
   }
-  function windGlyph(cx0, cy0, scale, intensity, t, seed){
-    const puff = T.ember;
+  function windGlyph(cx0, cy0, s, intensity, t, seed){
+    // pulled from the garden's own current-season palette (spark), same as the
+    // sparkle decorations sceneGarden already paints, rather than a fixed colour --
+    // this is the one wind-fuel pickup a garden level has, so it reskins with the
+    // season the way the rest of the world's art already does
+    const spark = toRGB(GARDEN.spark).join(',');
+    const scale = s*0.34;
     ctx.save();
     ctx.translate(cx0, cy0);
+    ctx.scale(-1, 1);
     ctx.lineCap = 'round';
-
-    const period = 1900, stagger = 260;
-    const growDur = 0.32, holdDur = 0.12, eraseDur = 0.32; // remainder of the period rests empty
-    const x0 = -scale*0.55;
     WIND_LINES.forEach((ln, li) => {
-      const local = (((t + seed*400 - li*stagger) % period) + period) % period;
-      const ph = local / period;
-      let a, b; // visible window, as a 0..1 fraction along the line's extent
-      if (ph < growDur){ a = 0; b = ph/growDur; }
-      else if (ph < growDur+holdDur){ a = 0; b = 1; }
-      else if (ph < growDur+holdDur+eraseDur){ a = (ph-growDur-holdDur)/eraseDur; b = 1; }
-      else return; // resting between cycles — nothing drawn at all, no ghost line
-      if (b-a <= 0.01) return;
-      const leftBound = x0 - scale*windLineLeftPad(ln);
-      const rightBound = x0 + scale*ln.len;
-      const extPx = rightBound - leftBound;
-      const wx0 = leftBound + extPx*a, wx1 = leftBound + extPx*b;
-      const curlPad = ln.curl ? scale*ln.curl*2.3 : 0;   // clip tall enough for the curl on either side
+      const arcLen = ln.curl ? scale*ln.curl*1.5*Math.PI : 0;   // the curl's own 270° hook
+      const totalLen = arcLen + scale*ln.len;
+      const dashLen = totalLen*0.9, gapLen = totalLen*0.6, cyc = dashLen+gapLen;
+      const offset = ((t/1000 + seed*0.4)*scale*0.9 + li*(cyc/3)) % cyc;
       ctx.save();
-      ctx.beginPath();
-      ctx.rect(wx0 - scale*0.03, scale*ln.y - scale*0.18 - curlPad, (wx1-wx0) + scale*0.06, scale*0.36 + curlPad*2);
-      ctx.clip();
-      // dark under-stroke for contrast, then the bright core — both hard-edged to the
-      // same window, no soft fade or always-on ghost beyond it
-      ctx.strokeStyle = `rgba(4,6,9,${(0.30*intensity).toFixed(3)})`;
-      ctx.lineWidth = Math.max(2.4, scale*0.135);
+      if (ln.dx) ctx.translate(scale*ln.dx, 0);
+      ctx.setLineDash([dashLen, gapLen]);
+      ctx.lineDashOffset = offset;
+      // a dark outline, drawn first with the exact same dash pattern/offset so it
+      // frames just the travelling highlight itself rather than reintroducing a
+      // separate always-on base line -- some seasons' grass (frost's pale near-white,
+      // fall's gold) leave the bright spark colour alone with too little contrast,
+      // and a neutral dark edge reads against any of them. Both strokes also got a
+      // bit thicker for the same reason.
+      ctx.strokeStyle = `rgba(4,6,9,${(0.45*intensity).toFixed(3)})`;
+      ctx.lineWidth = Math.max(2.2, scale*0.17);
       ctx.beginPath(); windLinePath(scale, ln); ctx.stroke();
-      ctx.strokeStyle = `rgba(${puff},${(0.98*intensity).toFixed(3)})`;
-      ctx.lineWidth = Math.max(1.8, scale*0.095);
+      ctx.strokeStyle = `rgba(${spark},${(0.98*intensity).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.8, scale*0.13);
       ctx.beginPath(); windLinePath(scale, ln); ctx.stroke();
       ctx.restore();
     });
-
     ctx.restore();
   }
   function drawGusts(t){
@@ -3959,7 +4264,7 @@
       const sx = (cx(i)+0.5)*cellSize - camX;
       const sy = (cy(i)+0.5)*cellSize - camY + bob;
       if (sx<-cellSize||sx>viewW+cellSize||sy<-cellSize||sy>viewH+cellSize) return;
-      windGlyph(sx, sy, cellSize*0.62, intensity, t, i);
+      drawSunIcon(ctx, sx, sy, cellSize*0.44, intensity, t, i);
     });
   }
 
@@ -4097,24 +4402,28 @@
   }
 
   function gardenActors(t){
-    if (explored.has(startCell)) drawMarker(startCell, '#f4ecd8', false, t);
-    drawWindmill(t);
-    drawVanes(t);
+    // The hedge world gets the same exit basket as mining and card now, in place of
+    // its own windmill/pinwheel beacon (drawWindmill is left defined but unused,
+    // same convention as drawVanes below).
+    drawBeacon(t);
+    // was drawVanes(t) -- the garden's own spinning-pinwheel pickup art, from before
+    // the goal item became one fixed icon in every world. drawEmbers() already carries
+    // that icon now (see drawGoalToken), so the garden pickups render the same way
+    // iso/card's do; drawVanes() itself is left defined but unused rather than deleted.
+    drawEmbers(t);
     drawGusts(t);
     drawBlooms();
     // The baked path stops at the last cell you committed to. This is the stub out to
-    // where you actually are, and the light you are carrying at the end of it.
+    // where you actually are -- same thin + soft glow trail technique as the baked
+    // portion, and every other world.
     const s = cellSize, head = trail[trail.length-1];
     const hx = (cx(head)+0.5)*s - camX, hy = (cy(head)+0.5)*s - camY;
     const bx = tipX - camX, by = tipY - camY;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (Math.hypot(bx-hx, by-hy) > s*0.04){
-      ctx.save();
-      ctx.shadowColor = GARDEN.cast; ctx.shadowBlur = s*0.10; ctx.shadowOffsetY = s*0.055;
-      ctx.strokeStyle = GARDEN.pathLo; ctx.lineWidth = s*0.30;
+      ctx.strokeStyle = TRAIL_HALO; ctx.lineWidth = s*0.28;
       ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(bx, by); ctx.stroke();
-      ctx.restore();
-      ctx.strokeStyle = GARDEN.path; ctx.lineWidth = s*0.22;
+      ctx.strokeStyle = TRAIL_THREAD; ctx.lineWidth = s*0.09;
       ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(bx, by); ctx.stroke();
     }
     // Olli, carrying the light — the warm glow stays, cast from a near-invisible
@@ -4124,7 +4433,16 @@
     ctx.fillStyle = 'rgba(255,206,110,.01)';
     ctx.beginPath(); ctx.arc(bx, by, s*0.04, 0, 7); ctx.fill();
     ctx.restore();
-    drawOlliToken(ctx, bx, by, s*0.4, travelAngle(hx, hy, bx, by));
+    // The two-tone bead -- same fixed-green head marker as every other world.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = s*0.08; ctx.shadowOffsetY = s*0.03;
+    ctx.fillStyle = OLLI_GREEN_DK;
+    ctx.beginPath(); ctx.arc(bx, by, s*0.16, 0, 7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = OLLI_GREEN;
+    ctx.beginPath(); ctx.arc(bx, by-s*0.015, s*0.13, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(bx-s*0.045, by-s*0.06, s*0.05, s*0.03, -0.5, 0, 7); ctx.fill();
   }
 
 
@@ -4768,47 +5086,37 @@
     }
   }
 
-  // the yarn and everything standing on the spread
+  // the trail and everything standing on the spread
   function cardActors(t){
-    if (explored.has(startCell)) drawMarker(startCell, '#f4ecd8', false, t);
     drawBeacon(t);
     drawEmbers(t);
     drawFlames(t);
     drawBlooms();
 
+    // same thin + soft glow trail every world uses now, in place of the old
+    // yarn-and-twist rendering (yarnBodyAndTwist is left defined but unused).
     const tipOut = Math.hypot(tipX-(cx(trail[trail.length-1])+0.5)*cellSize,
                               tipY-(cy(trail[trail.length-1])+0.5)*cellSize) > cellSize*0.04;
     if (trail.length > 1 || tipOut){
       ctx.lineJoin='round'; ctx.lineCap='round';
-      ctx.save();                                     // the yarn's own soft shadow
-      ctx.shadowColor = CARD.shadow + '.45)'; ctx.shadowBlur = cellSize*0.10; ctx.shadowOffsetY = cellSize*0.05;
-      ctx.strokeStyle = CARD.yarnDark; ctx.lineWidth = cellSize*0.20; strokeTrail();
-      ctx.restore();
-      // core + twist together, so the ply is cut to the strand instead of overhanging it
-      yarnBodyAndTwist(ctx, threadPoints(), cellSize, viewW, viewH, dpr, (c) => {
-        const pts = threadPoints();
-        if (pts.length < 2) return;
-        c.beginPath();
-        c.moveTo(pts[0].x, pts[0].y);
-        for (let i=1;i<pts.length-1;i++){
-          const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
-          c.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
-        }
-        c.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
-        c.stroke();
-      });
+      ctx.strokeStyle = TRAIL_HALO; ctx.lineWidth = cellSize*0.28;
+      strokeTrail();
+      ctx.strokeStyle = TRAIL_THREAD; ctx.lineWidth = cellSize*0.09;
+      strokeTrail();
     }
-    // Olli, sitting where the yarn ball used to — its drop shadow stays under him so
-    // he still grounds onto the board the same way everything else here does.
+    // The two-tone bead -- same fixed-green head marker as every other world. Its
+    // own drop shadow grounds it onto the board, same job the old invisible-point
+    // shadow trick used to do for Olli's sprite.
     const hx = tipX - camX, hy = tipY - camY;
     ctx.save();
-    ctx.shadowColor = CARD.shadow + '.45)'; ctx.shadowBlur = cellSize*0.12; ctx.shadowOffsetY = cellSize*0.055;
-    ctx.fillStyle = 'rgba(0,0,0,.01)';
-    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.05, 0, 7); ctx.fill();
+    ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = cellSize*0.08; ctx.shadowOffsetY = cellSize*0.03;
+    ctx.fillStyle = OLLI_GREEN_DK;
+    ctx.beginPath(); ctx.arc(hx, hy, cellSize*0.16, 0, 7); ctx.fill();
     ctx.restore();
-    const cardHead = trail[trail.length-1];
-    const chx = (cx(cardHead)+0.5)*cellSize - camX, chy = (cy(cardHead)+0.5)*cellSize - camY;
-    drawOlliToken(ctx, hx, hy, cellSize*0.4, travelAngle(chx, chy, hx, hy));
+    ctx.fillStyle = OLLI_GREEN;
+    ctx.beginPath(); ctx.arc(hx, hy-cellSize*0.015, cellSize*0.13, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(hx-cellSize*0.045, hy-cellSize*0.06, cellSize*0.05, cellSize*0.03, -0.5, 0, 7); ctx.fill();
   }
 
   const SKINS = { iso: drawIso, garden: drawGarden, card: drawCard };
@@ -4850,8 +5158,11 @@
     }
   }
 
-  // The exit shines through the fog — a light to head toward. It stays sealed (a dim ring)
-  // until you've gathered enough embers, then opens into a bright, pulsing beacon.
+  // The exit shines through the fog — a light to head toward. It stays sealed (a
+  // grey, closed basket) until you've gathered enough embers, then opens to reveal
+  // Olli's collection inside. The basket itself is the same fixed-colour icon used
+  // at the end of every world; only the ambient glow guiding you toward it, and the
+  // off-screen compass arrow, live here.
   function drawBeacon(t){
     const head = trail[trail.length-1];
     const open = exitOpen();
@@ -4860,29 +5171,21 @@
     const dCells = Math.hypot(bx-hx, by-hy)/cellSize;
     const intensity = Math.max(0.05, Math.min(1, 1 - dCells/16)) * (open ? 1 : 0.5);
     const sx = bx - camX, sy = by - camY;
-    const cyan = T.beaconRGB;
     const onScreen = sx>-cellSize && sx<viewW+cellSize && sy>-cellSize && sy<viewH+cellSize;
     if (onScreen){
-      const p = Math.sin(t/520)*0.5+0.5;
       const rad = cellSize*(0.8 + 2.4*intensity);
       const g = ctx.createRadialGradient(sx,sy,0, sx,sy,rad);
-      g.addColorStop(0, `rgba(${cyan},${0.5*intensity})`);
-      g.addColorStop(1, `rgba(${cyan},0)`);
+      g.addColorStop(0, `rgba(${BASKET_GLOW},${0.5*intensity})`);
+      g.addColorStop(1, `rgba(${BASKET_GLOW},0)`);
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
       if (explored.has(endCell)){
-        if (open){                                   // open: bright pulsing beacon
-          ctx.beginPath(); ctx.arc(sx,sy, cellSize*(0.28+0.18*p),0,7);
-          ctx.strokeStyle=`rgba(${cyan},${0.6-0.4*p})`; ctx.lineWidth=2.5; ctx.stroke();
-          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.2,0,7); ctx.fillStyle=getVar('--beacon'); ctx.fill();
-        } else {                                     // sealed: a quiet, dim locked ring
-          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.26,0,7);
-          ctx.strokeStyle=`rgba(${cyan},0.34)`; ctx.lineWidth=2; ctx.stroke();
-          ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.13,0,7);
-          ctx.strokeStyle=`rgba(${cyan},0.5)`; ctx.lineWidth=2; ctx.stroke();
-        }
-      } else {
+        // the basket itself -- same fixed-colour icon, outline, hover and shadow
+        // as every other level's exit; sizing/position matches the finalized mockup.
+        const bs = cellSize*1.05;
+        drawExitBasket(ctx, sx, sy - bs*0.30, bs, open, t);
+      } else {                                        // not yet explored: a dim hint
         ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.1*intensity+2,0,7);
-        ctx.fillStyle=`rgba(${cyan},${0.6*intensity})`; ctx.fill();
+        ctx.fillStyle=`rgba(${BASKET_GLOW},${0.6*intensity})`; ctx.fill();
       }
     } else {
       // edge compass: which way is the light
@@ -4892,7 +5195,7 @@
       const tt = Math.min(Math.abs(tx),Math.abs(ty));
       const ex=ccx+dx*tt, ey=ccy+dy*tt, ang=Math.atan2(dy,dx);
       ctx.save(); ctx.translate(ex,ey); ctx.rotate(ang);
-      ctx.globalAlpha = (open ? 0.3 : 0.18) + 0.5*intensity; ctx.fillStyle = getVar('--beacon');
+      ctx.globalAlpha = (open ? 0.3 : 0.18) + 0.5*intensity; ctx.fillStyle = open ? TOMATO : WICKER_DK;
       ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-5,-5); ctx.lineTo(-5,5); ctx.closePath(); ctx.fill();
       ctx.globalAlpha=1; ctx.restore();
     }
@@ -4901,7 +5204,11 @@
   // Embers: steady warm motes — the exit keys. Glow faintly through nearby fog.
   function drawEmbers(t){
     const head = trail[trail.length-1];
-    const warm = T.ember;
+    // Fixed red, matching the goal token's own #FF2828 (drawGoalToken/GOAL_TOKEN_SRC),
+    // rather than T.ember's per-look warm yellow/orange -- now that the icon itself is
+    // the same in every world, its glow reads as one colour too instead of shifting
+    // with the theme underneath it.
+    const warm = '255,40,40';
     const nearRange = 5;
     embers.forEach(i => {
       const dCells = dist(i, head);
@@ -4913,13 +5220,18 @@
       const sx = (cx(i)+0.5)*cellSize - camX;
       const sy = (cy(i)+0.5)*cellSize - camY + bob;
       if (sx<-cellSize||sx>viewW+cellSize||sy<-cellSize||sy>viewH+cellSize) return;
-      const rad = cellSize*(0.30 + 0.30*intensity);
+      // Smaller and dimmer than the glow used to be, breathing in size + opacity on the
+      // same slow cycle the "breathe" mockup variant used, phase-staggered by `i` (same
+      // trick `bob` already uses) so nearby collectibles don't pulse in lockstep. Both
+      // the base size and the breathing swing still scale with `intensity`, same as
+      // before, so the fog-of-war fade for distant/unseen items is unchanged.
+      const breathe = 0.5 + 0.5*Math.sin(t/900 + i);
+      const rad = cellSize*(0.16 + 0.16*intensity + 0.07*breathe*intensity);
       const g = ctx.createRadialGradient(sx,sy,0, sx,sy,rad);
-      g.addColorStop(0, `rgba(${warm},${0.5*intensity})`);
+      g.addColorStop(0, `rgba(${warm},${(intensity*(0.20+0.15*breathe)).toFixed(3)})`);
       g.addColorStop(1, `rgba(${warm},0)`);
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx,sy, cellSize*0.075, 0, 7);
-      ctx.fillStyle = `rgba(${T.coreRGB},${0.5+0.4*intensity})`; ctx.fill();
+      drawGoalToken(ctx, sx, sy, cellSize, 0.5+0.4*intensity);
     });
   }
 
